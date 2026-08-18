@@ -97,7 +97,12 @@ app.post('/api/ai-hunt', async (req, res) => {
 
     // Step 3: Process and enrich results
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-    const junkDomains = ['example.com', 'test.com', 'sentry.io', 'email.com', 'yourdomain', 'company.com'];
+    const junkDomains = [
+      'example.com', 'test.com', 'sentry.io', 'email.com', 'yourdomain', 'company.com',
+      'greenhouse.io', 'lever.co', 'ashbyhq.com', 'myworkdayjobs.com', 'smartrecruiters.com',
+      'workable.com', 'icims.com', 'jobvite.com', 'bamboohr.com', 'rippling.com', 'dover.com',
+      'pinpoint.com', 'paylocity.com', 'w3.org', 'schema.org', 'github.com', 'google.com'
+    ];
 
     const results = searchData.results.map(result => {
       const url = result.url || '';
@@ -146,19 +151,29 @@ app.post('/api/ai-hunt', async (req, res) => {
         const m = url.match(/^https?:\/\/([^.]+)\./); if (m) company = m[1];
       }
 
-      // Clean company slug
+      const rawSlug = company;
+      // Clean company name
       company = company.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
       if (!company) company = (result.author || result.title || 'Unknown Company').split(' ').slice(0, 3).join(' ');
 
       // Extract emails from page text
       const text = contentMap[result.id] || '';
       const foundEmails = (text.match(emailRegex) || []).filter(e =>
-        !junkDomains.some(j => e.includes(j)) && !e.match(/\.(png|jpg|gif|svg|css|js)/i)
+        !junkDomains.some(j => e.toLowerCase().includes(j)) && !e.match(/\.(png|jpg|gif|svg|css|js)/i)
       );
 
-      // Fallback: guess common HR email patterns
-      const companySlug = company.toLowerCase().replace(/\s+/g, '');
-      const guessedEmail = foundEmails[0] || `careers@${companySlug}.com`;
+      // Clean domain slug
+      const domainSlug = (rawSlug || company).toLowerCase().replace(/[^a-z0-9]/g, '');
+      const candidateEmails = [
+        ...foundEmails,
+        `careers@${domainSlug}.com`,
+        `hr@${domainSlug}.com`,
+        `talent@${domainSlug}.com`,
+        `recruiting@${domainSlug}.com`
+      ];
+
+      // Remove duplicates
+      const uniqueCandidateEmails = Array.from(new Set(candidateEmails));
 
       return {
         id: result.id,
@@ -166,11 +181,13 @@ app.post('/api/ai-hunt', async (req, res) => {
         company,
         platform,
         url,
-        hrEmail: guessedEmail,
+        hrEmail: uniqueCandidateEmails[0],
+        candidateEmails: uniqueCandidateEmails,
         isGuessed: foundEmails.length === 0,
         publishedDate: result.publishedDate,
       };
     });
+
 
     res.json({ success: true, results });
 

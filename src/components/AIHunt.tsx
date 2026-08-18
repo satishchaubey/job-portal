@@ -14,9 +14,11 @@ interface HuntResult {
   platform: string;
   url: string;
   hrEmail: string;
+  candidateEmails?: string[];
   isGuessed: boolean;
   publishedDate?: string;
 }
+
 
 // ─── Platform definitions ─────────────────────────────────────
 const PLATFORMS = [
@@ -446,6 +448,32 @@ export const AIHunt: React.FC = () => {
                           />
                           <Edit3 size={12} style={{ color: '#c7d2fe', flexShrink: 0 }} />
                         </div>
+
+                        {/* Candidate Email Suggestions */}
+                        {r.candidateEmails && r.candidateEmails.length > 0 && (
+                          <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', marginTop: '0.35rem' }}>
+                            {r.candidateEmails.map(cEmail => (
+                              <button
+                                key={cEmail}
+                                type="button"
+                                onClick={() => setEditEmails(p => ({ ...p, [r.id]: cEmail }))}
+                                style={{
+                                  fontSize: '0.68rem',
+                                  fontFamily: 'monospace',
+                                  padding: '0.1rem 0.4rem',
+                                  borderRadius: '4px',
+                                  border: '1px solid #e0e7ff',
+                                  background: email === cEmail ? '#6366f1' : '#ffffff',
+                                  color: email === cEmail ? '#ffffff' : '#6366f1',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease'
+                                }}
+                              >
+                                {cEmail}
+                              </button>
+                            ))}
+                          </div>
+                        )}
 
                         {sendLog[r.id] && (
                           <div style={{ marginTop: '0.4rem', fontSize: '0.75rem', color: isSent ? '#15803d' : '#dc2626', fontWeight: 500 }}>
