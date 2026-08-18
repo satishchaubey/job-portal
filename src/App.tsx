@@ -18,23 +18,58 @@ function App() {
   const [activeTab, setActiveTab] = useState<'table' | 'campaign'>('table');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Client-side router state
-  const [route, setRoute] = useState(window.location.pathname);
+  // Helper to parse clean current route (supports GitHub Pages subpath /job-portal, 404 ?p= redirect, & hash routes)
+  const getCleanRoute = (): string => {
+    if (typeof window === 'undefined') return '/';
 
+    // 1. Check URL query param ?p= (from 404.html redirect on GitHub Pages refresh)
+    const urlParams = new URLSearchParams(window.location.search);
+    const pParam = urlParams.get('p');
+    if (pParam) {
+      const cleanP = decodeURIComponent(pParam);
+      const repoBase = window.location.pathname.startsWith('/job-portal') ? '/job-portal' : '';
+      const cleanUrl = `${repoBase}${cleanP.startsWith('/') ? '' : '/'}${cleanP}`;
+      window.history.replaceState(null, '', cleanUrl);
+      return cleanP.startsWith('/') ? cleanP : `/${cleanP}`;
+    }
+
+    // 2. Check hash route e.g. #/ai-hunt or #ai-hunt
+    if (window.location.hash) {
+      const hashRoute = window.location.hash.replace(/^#\/?/, '/');
+      if (hashRoute) return hashRoute.startsWith('/') ? hashRoute : `/${hashRoute}`;
+    }
+
+    // 3. Check pathname
+    let path = window.location.pathname;
+    if (path.startsWith('/job-portal')) {
+      path = path.slice('/job-portal'.length);
+    }
+    return path.startsWith('/') ? path : `/${path}`;
+  };
+
+  // Client-side router state
+  const [route, setRoute] = useState(getCleanRoute);
 
   useEffect(() => {
     const handleLocationChange = () => {
-      setRoute(window.location.pathname);
+      setRoute(getCleanRoute());
     };
     window.addEventListener('popstate', handleLocationChange);
+    window.addEventListener('hashchange', handleLocationChange);
     return () => {
       window.removeEventListener('popstate', handleLocationChange);
+      window.removeEventListener('hashchange', handleLocationChange);
     };
   }, []);
 
-  const navigate = (path: string) => {
-    window.history.pushState({}, '', path);
-    setRoute(path);
+  const navigate = (targetPath: string) => {
+    const repoBase = window.location.pathname.startsWith('/job-portal') ? '/job-portal' : '';
+    const formattedPath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
+    const fullUrl = `${repoBase}${formattedPath === '/' ? '/' : formattedPath}`;
+
+    window.history.pushState({}, '', fullUrl);
+    setRoute(formattedPath);
+    setMobileMenuOpen(false);
   };
 
   const handleDataLoaded = (data: any[], colHeaders: string[], name: string) => {
@@ -81,6 +116,8 @@ function App() {
   };
 
 
+  const cleanRoute = route.replace(/\/+$/, '') || '/';
+
   return (
     <div className="container">
       {/* Brand Header & Main Routes Navigation */}
@@ -119,9 +156,9 @@ function App() {
         <nav className="desktop-nav-bar" style={{ display: 'flex', gap: '0.35rem', background: '#ffffff', padding: '0.35rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
           <button
             type="button"
-            className={route === '/' ? 'btn-primary' : 'btn-secondary'}
+            className={cleanRoute === '/' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => navigate('/')}
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: route === '/' ? undefined : 'transparent' }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: cleanRoute === '/' ? undefined : 'transparent' }}
           >
             <Table size={14} style={{ marginRight: '0.25rem' }} />
             Contacts Manager
@@ -129,9 +166,9 @@ function App() {
           
           <button
             type="button"
-            className={route === '/direct-send' ? 'btn-primary' : 'btn-secondary'}
+            className={cleanRoute === '/direct-send' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => navigate('/direct-send')}
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: route === '/direct-send' ? undefined : 'transparent' }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: cleanRoute === '/direct-send' ? undefined : 'transparent' }}
           >
             <Send size={14} style={{ marginRight: '0.25rem' }} />
             Quick Direct Mail
@@ -139,9 +176,9 @@ function App() {
 
           <button
             type="button"
-            className={route === '/bulk-paste' ? 'btn-primary' : 'btn-secondary'}
+            className={cleanRoute === '/bulk-paste' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => navigate('/bulk-paste')}
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: route === '/bulk-paste' ? undefined : 'transparent' }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: cleanRoute === '/bulk-paste' ? undefined : 'transparent' }}
           >
             <Layers size={14} style={{ marginRight: '0.25rem' }} />
             Bulk Paste Mailer
@@ -149,9 +186,9 @@ function App() {
 
           <button
             type="button"
-            className={route === '/fintech-dir' ? 'btn-primary' : 'btn-secondary'}
+            className={cleanRoute === '/fintech-dir' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => navigate('/fintech-dir')}
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: route === '/fintech-dir' ? undefined : 'transparent', color: route === '/fintech-dir' ? undefined : '#f59e0b' }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: cleanRoute === '/fintech-dir' ? undefined : 'transparent', color: cleanRoute === '/fintech-dir' ? undefined : '#f59e0b' }}
           >
             <Building size={14} style={{ marginRight: '0.25rem' }} />
             Fintech Directory NCR
@@ -159,9 +196,9 @@ function App() {
 
           <button
             type="button"
-            className={route === '/ai-hunt' ? 'btn-primary' : 'btn-secondary'}
+            className={cleanRoute === '/ai-hunt' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => navigate('/ai-hunt')}
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: route === '/ai-hunt' ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent', color: route === '/ai-hunt' ? 'white' : '#4f46e5' }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: cleanRoute === '/ai-hunt' ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent', color: cleanRoute === '/ai-hunt' ? 'white' : '#4f46e5' }}
           >
             <Zap size={14} style={{ marginRight: '0.25rem' }} />
             AI Job Hunter
@@ -202,8 +239,8 @@ function App() {
             onClick={() => { navigate('/'); setMobileMenuOpen(false); }}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
-              background: route === '/' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
-              color: route === '/' ? '#4f46e5' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+              background: cleanRoute === '/' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+              color: cleanRoute === '/' ? '#4f46e5' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
             }}
           >
             <Table size={18} style={{ color: '#4f46e5' }} /> Contacts Manager
@@ -214,8 +251,8 @@ function App() {
             onClick={() => { navigate('/direct-send'); setMobileMenuOpen(false); }}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
-              background: route === '/direct-send' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
-              color: route === '/direct-send' ? '#4f46e5' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+              background: cleanRoute === '/direct-send' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+              color: cleanRoute === '/direct-send' ? '#4f46e5' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
             }}
           >
             <Send size={18} style={{ color: '#4f46e5' }} /> Quick Direct Mail
@@ -226,8 +263,8 @@ function App() {
             onClick={() => { navigate('/bulk-paste'); setMobileMenuOpen(false); }}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
-              background: route === '/bulk-paste' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
-              color: route === '/bulk-paste' ? '#4f46e5' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+              background: cleanRoute === '/bulk-paste' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+              color: cleanRoute === '/bulk-paste' ? '#4f46e5' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
             }}
           >
             <Layers size={18} style={{ color: '#4f46e5' }} /> Bulk Paste Mailer
@@ -238,8 +275,8 @@ function App() {
             onClick={() => { navigate('/fintech-dir'); setMobileMenuOpen(false); }}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
-              background: route === '/fintech-dir' ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
-              color: route === '/fintech-dir' ? '#d97706' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+              background: cleanRoute === '/fintech-dir' ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+              color: cleanRoute === '/fintech-dir' ? '#d97706' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
             }}
           >
             <Building size={18} style={{ color: '#f59e0b' }} /> Fintech Directory NCR
@@ -250,21 +287,21 @@ function App() {
             onClick={() => { navigate('/ai-hunt'); setMobileMenuOpen(false); }}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
-              background: route === '/ai-hunt' ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent',
-              color: route === '/ai-hunt' ? '#ffffff' : '#4f46e5', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+              background: cleanRoute === '/ai-hunt' ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent',
+              color: cleanRoute === '/ai-hunt' ? '#ffffff' : '#4f46e5', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
             }}
           >
-            <Zap size={18} style={{ color: route === '/ai-hunt' ? '#ffffff' : '#4f46e5' }} /> AI Job Hunter
+            <Zap size={18} style={{ color: cleanRoute === '/ai-hunt' ? '#ffffff' : '#4f46e5' }} /> AI Job Hunter
           </button>
         </div>
       )}
 
 
       {/* Route Switcher Render */}
-      {route === '/ai-hunt' ? (
+      {cleanRoute === '/ai-hunt' ? (
         /* Full-page light theme — no container wrapper */
         <AIHunt />
-      ) : route === '/fintech-dir' ? (
+      ) : cleanRoute === '/fintech-dir' ? (
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>Home</span>
@@ -273,7 +310,7 @@ function App() {
           </div>
           <FintechDirectory />
         </div>
-      ) : route === '/bulk-paste' ? (
+      ) : cleanRoute === '/bulk-paste' ? (
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
           {/* Breadcrumb back navigation link */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -284,7 +321,7 @@ function App() {
 
           <BulkPasteMailer />
         </div>
-      ) : route === '/direct-send' ? (
+      ) : cleanRoute === '/direct-send' ? (
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
           {/* Breadcrumb back navigation link */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>

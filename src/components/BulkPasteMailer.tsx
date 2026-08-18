@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Mail, CheckCircle2, Loader2, Paperclip, Send, Layers, Trash2, Play } from 'lucide-react';
-import { API_BASE } from '../config';
+import { getApiBase } from '../config';
 
 export const BulkPasteMailer: React.FC = () => {
   const [rawText, setRawText] = useState('');
@@ -85,7 +85,7 @@ Ghaziabad, Uttar Pradesh`
       // Send to each email in the batch sequentially
       for (const email of targetEmails) {
         try {
-          const res = await fetch(`${API_BASE}/api/send-email`, {
+          const res = await fetch(`${getApiBase()}/api/send-email`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({

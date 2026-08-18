@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Mail, Copy, Check, ExternalLink, Send, AlertTriangle, Layers, CheckCircle2, Loader2, Settings, Lock, HelpCircle } from 'lucide-react';
-import { API_BASE } from '../config';
+import { getApiBase } from '../config';
 
 interface BatchMailerProps {
   data: any[];
@@ -109,7 +109,7 @@ Ghaziabad, Uttar Pradesh`
 
   // Helper function to send email via backend API
   const sendEmailViaBackend = async (email: string) => {
-    const response = await fetch(`${API_BASE}/api/send-email`, {
+    const response = await fetch(`${getApiBase()}/api/send-email`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

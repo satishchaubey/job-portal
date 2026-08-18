@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>SheetSync - Directing...</title>
+    <script type="text/javascript">
+      // GitHub Pages SPA 404 Redirect Handler
+      // Converts subpaths like /job-portal/ai-hunt into query parameter /job-portal/?p=/ai-hunt
+      (function() {
+        var l = window.location;
+        var repoName = '/job-portal';
+        var path = l.pathname;
+
+        var route = path;
+        if (route.startsWith(repoName)) {
+          route = route.slice(repoName.length);
+        }
+
+        var redirectUrl = l.protocol + '//' + l.hostname + (l.port ? ':' + l.port : '') +
+          repoName + '/?p=' + encodeURIComponent(route) +
+          (l.search ? '&q=' + encodeURIComponent(l.search.slice(1)) : '') +
+          l.hash;
+
+        l.replace(redirectUrl);
+      })();
+    </script>
+  </head>
+  <body>
+  </body>
+</html>

@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, MapPin, Mail, Building, Send, CheckCircle2, Loader2, Filter, ExternalLink, Download, Layers, Play } from 'lucide-react';
-import { API_BASE } from '../config';
+import { getApiBase } from '../config';
 
 interface Company {
   id: string;
@@ -213,7 +213,7 @@ Ghaziabad, Uttar Pradesh`;
 
     for (const email of batch.emails) {
       try {
-        const res = await fetch(`${API_BASE}/api/send-email`, {
+        const res = await fetch(`${getApiBase()}/api/send-email`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ smtpUser, smtpPass, to: email, subject, body: emailBody })

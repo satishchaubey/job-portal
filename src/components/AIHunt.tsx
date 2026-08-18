@@ -4,7 +4,7 @@ import {
   Building2, Zap, Mail, Edit3,
   Sparkles, Globe, Play, Layers, CheckSquare, Square as SquareIcon, Filter
 } from 'lucide-react';
-import { API_BASE } from '../config';
+import { getApiBase } from '../config';
 
 // ─── Types ────────────────────────────────────────────────────
 interface HuntResult {
@@ -203,7 +203,7 @@ export const AIHunt: React.FC = () => {
     setSearching(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/ai-hunt`, {
+      const res = await fetch(`${getApiBase()}/api/ai-hunt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -259,7 +259,7 @@ export const AIHunt: React.FC = () => {
     setSendStatus(p => ({ ...p, [r.id]: 'sending' }));
     setSendLog(p => ({ ...p, [r.id]: `Sending to ${email}...` }));
     try {
-      const resp = await fetch(`${API_BASE}/api/send-email`, {
+      const resp = await fetch(`${getApiBase()}/api/send-email`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
