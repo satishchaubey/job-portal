@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import {
   Search, Send, Loader2, CheckCircle2, AlertCircle, ExternalLink,
-  Building2, Zap, Mail, Edit3, RefreshCw, ChevronDown, ChevronUp,
-  Sparkles, Globe, Play, Square, Layers, CheckSquare, Square as SquareIcon, Filter
+  Building2, Zap, Mail, Edit3,
+  Sparkles, Globe, Play, Layers, CheckSquare, Square as SquareIcon, Filter
 } from 'lucide-react';
 import { API_BASE } from '../config';
 
@@ -163,7 +163,6 @@ export const AIHunt: React.FC = () => {
   const [processedBatches, setProcessedBatches] = useState<Record<number, boolean>>({});
   const [sendingAllBatches, setSendingAllBatches] = useState(false);
 
-  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const togglePlatform = (key: string) => {
     setSelectedPlatforms(prev =>
@@ -490,7 +489,7 @@ export const AIHunt: React.FC = () => {
                 const isSelected = selectedIds.has(r.id);
                 const color = resultPlatformColor(r.platform);
                 const email = getEmail(r);
-                const isExpanded = expandedId === r.id;
+
 
                 return (
                   <div key={r.id} style={S.resultCard(isSelected, isSent)}>
