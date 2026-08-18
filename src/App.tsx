@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileSpreadsheet, Sparkles, RefreshCw, Layers, Table, Mail, ChevronRight, Send, Building } from 'lucide-react';
+import { FileSpreadsheet, Sparkles, RefreshCw, Layers, Table, ChevronRight, Send, Building, Zap } from 'lucide-react';
 import { UploadZone } from './components/UploadZone';
 import { StatsDashboard } from './components/StatsDashboard';
 import { TableView } from './components/TableView';
@@ -8,6 +8,7 @@ import { BatchMailer } from './components/BatchMailer';
 import { QuickSend } from './components/QuickSend';
 import { BulkPasteMailer } from './components/BulkPasteMailer';
 import { FintechDirectory } from './components/FintechDirectory';
+import { AIHunt } from './components/AIHunt';
 
 function App() {
   const [sheetData, setSheetData] = useState<any[] | null>(null);
@@ -155,6 +156,22 @@ function App() {
             <Building size={14} style={{ marginRight: '0.25rem' }} />
             Fintech Directory NCR
           </button>
+
+          <button
+            type="button"
+            className={route === '/ai-hunt' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => navigate('/ai-hunt')}
+            style={{
+              padding: '0.45rem 0.85rem',
+              fontSize: '0.8rem',
+              border: 'none',
+              background: route === '/ai-hunt' ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'transparent',
+              color: route === '/ai-hunt' ? 'white' : '#818cf8',
+            }}
+          >
+            <Zap size={14} style={{ marginRight: '0.25rem' }} />
+            AI Job Hunter
+          </button>
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: 0.8 }} className="desktop-only">
@@ -166,7 +183,10 @@ function App() {
       </header>
 
       {/* Route Switcher Render */}
-      {route === '/fintech-dir' ? (
+      {route === '/ai-hunt' ? (
+        /* Full-page light theme — no container wrapper */
+        <AIHunt />
+      ) : route === '/fintech-dir' ? (
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>Home</span>

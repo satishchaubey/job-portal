@@ -25,6 +25,161 @@ app.use(express.json());
 // Health check for Render
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 
+// ─────────────────────────────────────────────────────────────
+// AI HUNT: Search job postings on ATS platforms via Exa.ai
+// ─────────────────────────────────────────────────────────────
+app.post('/api/ai-hunt', async (req, res) => {
+  const { position, platforms, exaApiKey } = req.body;
+
+  if (!position || !exaApiKey) {
+    return res.status(400).json({ success: false, message: 'position and exaApiKey are required.' });
+  }
+
+  const PLATFORM_DOMAINS = {
+    greenhouse:       'boards.greenhouse.io',
+    lever:            'jobs.lever.co',
+    ashby:            'jobs.ashbyhq.com',
+    workday:          'myworkdayjobs.com',
+    smartrecruiters:  'careers.smartrecruiters.com',
+    workable:         'apply.workable.com',
+    icims:            'careers.icims.com',
+    jobvite:          'jobs.jobvite.com',
+    bamboohr:         'bamboohr.com',
+    paylocity:        'recruiting.paylocity.com',
+    rippling:         'ats.rippling.com',
+    dover:            'app.dover.com',
+    pinpoint:         'jobs.pinpoint.com',
+  };
+
+  const selectedDomains = (platforms && platforms.length > 0)
+    ? platforms.map(p => PLATFORM_DOMAINS[p]).filter(Boolean)
+    : Object.values(PLATFORM_DOMAINS);
+
+  try {
+    // Step 1: Search for job postings on selected platforms
+    const searchRes = await fetch('https://api.exa.ai/search', {
+      method: 'POST',
+      headers: { 'x-api-key': exaApiKey, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query: `${position} job opening hiring apply now`,
+        numResults: 20,
+        includeDomains: selectedDomains,
+        useAutoprompt: true,
+        type: 'auto',
+      }),
+    });
+
+    const searchData = await searchRes.json();
+
+    if (searchData.error) {
+      return res.status(400).json({ success: false, message: searchData.error });
+    }
+
+    if (!searchData.results || searchData.results.length === 0) {
+      return res.json({ success: true, results: [], message: 'No job listings found. Try different platforms or position.' });
+    }
+
+    // Step 2: Fetch page contents for email extraction (max 10 to save credits)
+    const ids = searchData.results.slice(0, 10).map(r => r.id);
+    let contentMap = {};
+
+    try {
+      const contentsRes = await fetch('https://api.exa.ai/contents', {
+        method: 'POST',
+        headers: { 'x-api-key': exaApiKey, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids, text: true }),
+      });
+      const contentsData = await contentsRes.json();
+      if (contentsData.results) {
+        contentsData.results.forEach(c => { contentMap[c.id] = c.text || ''; });
+      }
+    } catch (_) { /* contents fetch is optional */ }
+
+    // Step 3: Process and enrich results
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    const junkDomains = ['example.com', 'test.com', 'sentry.io', 'email.com', 'yourdomain', 'company.com'];
+
+    const results = searchData.results.map(result => {
+      const url = result.url || '';
+      let platform = 'ATS';
+      let company = '';
+
+      // Detect platform + extract company slug from URL
+      if (url.includes('greenhouse.io')) {
+        platform = 'Greenhouse';
+        const m = url.match(/greenhouse\.io\/([^/?#]+)/); if (m) company = m[1];
+      } else if (url.includes('lever.co')) {
+        platform = 'Lever';
+        const m = url.match(/lever\.co\/([^/?#]+)/); if (m) company = m[1];
+      } else if (url.includes('ashbyhq.com')) {
+        platform = 'Ashby';
+        const m = url.match(/ashbyhq\.com\/([^/?#]+)/); if (m) company = m[1];
+      } else if (url.includes('myworkdayjobs.com')) {
+        platform = 'Workday';
+        const m = url.match(/^https?:\/\/([^.]+)\./); if (m) company = m[1];
+      } else if (url.includes('smartrecruiters.com')) {
+        platform = 'SmartRecruiters';
+        const m = url.match(/smartrecruiters\.com\/([^/?#]+)/); if (m) company = m[1];
+      } else if (url.includes('workable.com')) {
+        platform = 'Workable';
+        const m = url.match(/workable\.com\/([^/?#]+)/); if (m) company = m[1];
+      } else if (url.includes('icims.com')) {
+        platform = 'iCIMS';
+        const m = url.match(/^https?:\/\/([^.]+)\./); if (m) company = m[1];
+      } else if (url.includes('jobvite.com')) {
+        platform = 'Jobvite';
+        const m = url.match(/jobvite\.com\/([^/?#]+)/); if (m) company = m[1];
+      } else if (url.includes('bamboohr.com')) {
+        platform = 'BambooHR';
+        const m = url.match(/^https?:\/\/([^.]+)\./); if (m) company = m[1];
+      } else if (url.includes('rippling.com')) {
+        platform = 'Rippling';
+        const m = url.match(/rippling\.com\/([^/?#]+)/); if (m) company = m[1];
+      } else if (url.includes('dover.com')) {
+        platform = 'Dover';
+        const m = url.match(/dover\.com\/([^/?#]+)/); if (m) company = m[1];
+      } else if (url.includes('pinpoint.com')) {
+        platform = 'Pinpoint';
+        const m = url.match(/pinpoint\.com\/([^/?#]+)/); if (m) company = m[1];
+      } else if (url.includes('paylocity.com')) {
+        platform = 'Paylocity';
+        const m = url.match(/^https?:\/\/([^.]+)\./); if (m) company = m[1];
+      }
+
+      // Clean company slug
+      company = company.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase()).trim();
+      if (!company) company = (result.author || result.title || 'Unknown Company').split(' ').slice(0, 3).join(' ');
+
+      // Extract emails from page text
+      const text = contentMap[result.id] || '';
+      const foundEmails = (text.match(emailRegex) || []).filter(e =>
+        !junkDomains.some(j => e.includes(j)) && !e.match(/\.(png|jpg|gif|svg|css|js)/i)
+      );
+
+      // Fallback: guess common HR email patterns
+      const companySlug = company.toLowerCase().replace(/\s+/g, '');
+      const guessedEmail = foundEmails[0] || `careers@${companySlug}.com`;
+
+      return {
+        id: result.id,
+        title: result.title || `${position} - ${company}`,
+        company,
+        platform,
+        url,
+        hrEmail: guessedEmail,
+        isGuessed: foundEmails.length === 0,
+        publishedDate: result.publishedDate,
+      };
+    });
+
+    res.json({ success: true, results });
+
+  } catch (err) {
+    console.error('AI Hunt error:', err.message);
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // Endpoint to send a single email with PDF attachment
 app.post('/api/send-email', async (req, res) => {
   const { smtpUser, smtpPass, to, subject, body } = req.body;
