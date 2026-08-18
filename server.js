@@ -36,8 +36,9 @@ app.post('/api/ai-hunt', async (req, res) => {
     return res.status(400).json({ success: false, message: 'position is required.' });
   }
 
-  // If Gemini API Key is provided (starts with AIza or explicitly passed as geminiApiKey)
-  if (geminiApiKey || (apiKey && apiKey.startsWith('AIza'))) {
+  // Only enter Gemini API flow if key starts with AIza
+  if ((geminiApiKey && geminiApiKey.startsWith('AIza')) || (apiKey && apiKey.startsWith('AIza'))) {
+
     try {
       const targetPlatforms = (platforms && platforms.length > 0) ? platforms.join(', ') : 'LinkedIn, Indeed, Greenhouse, Lever, Ashby, Workday';
       const prompt = `Search live for 15 active ${position} job openings from ${targetPlatforms}.
@@ -51,34 +52,56 @@ Each object must have:
 - "hrEmail": official HR or careers email (e.g. careers@companydomain.com)
 - "candidateEmails": array of 3 candidate emails: ["careers@companydomain.com", "hr@companydomain.com", "talent@companydomain.com"]
 - "isGuessed": boolean true`;
-      let geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          tools: [{ googleSearch: {} }]
-        })
-      });
-
-      let geminiData = await geminiRes.json();
-      
-      // Fallback to gemini-1.5-pro if flash returns model error
-      if (geminiData.error && geminiData.error.message && geminiData.error.message.includes('not available')) {
-        geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+      // Helper function to try generating content with a specific model name
+      const tryGeminiModel = async (modelName, withSearch = true) => {
+        const bodyObj = { contents: [{ parts: [{ text: prompt }] }] };
+        if (withSearch) bodyObj.tools = [{ googleSearch: {} }];
+        
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }] }],
-            tools: [{ googleSearch: {} }]
-          })
+          body: JSON.stringify(bodyObj)
         });
-        geminiData = await geminiRes.json();
+        return await r.json();
+      };
+
+      // Candidate models to try in order
+      let candidateModels = ['gemini-1.5-flash-latest', 'gemini-1.5-flash-001', 'gemini-pro', 'gemini-1.5-pro-latest'];
+      
+      // Dynamic Discovery: fetch available models from Google API
+      try {
+        const listRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        const listData = await listRes.json();
+        if (listData.models && Array.isArray(listData.models)) {
+          const validModels = listData.models
+            .filter(m => m.supportedGenerationMethods && m.supportedGenerationMethods.includes('generateContent'))
+            .map(m => m.name.replace(/^models\//, ''));
+          if (validModels.length > 0) {
+            candidateModels = Array.from(new Set([...validModels, ...candidateModels]));
+          }
+        }
+      } catch (_) { /* fallback to default candidates */ }
+
+      let geminiData = null;
+      let lastErrorMessage = '';
+
+      for (const mName of candidateModels) {
+        // Try with googleSearch tool first
+        geminiData = await tryGeminiModel(mName, true);
+        if (geminiData && !geminiData.error) break;
+
+        // If error was related to search tool not supported for model, try without search tool
+        if (geminiData && geminiData.error) {
+          lastErrorMessage = geminiData.error.message || '';
+          geminiData = await tryGeminiModel(mName, false);
+          if (geminiData && !geminiData.error) break;
+        }
       }
 
-      if (geminiData.error) {
-
-        return res.status(400).json({ success: false, message: geminiData.error.message || 'Gemini API error' });
+      if (!geminiData || geminiData.error) {
+        return res.status(400).json({ success: false, message: (geminiData && geminiData.error && geminiData.error.message) || lastErrorMessage || 'Gemini API error' });
       }
+
 
       const textOutput = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
       // Clean JSON string
@@ -108,7 +131,6 @@ Each object must have:
     jobvite:          'jobs.jobvite.com',
     bamboohr:         'bamboohr.com',
     paylocity:        'recruiting.paylocity.com',
-    rippling:         'ats.rippling.com',
     dover:            'app.dover.com',
     pinpoint:         'jobs.pinpoint.com',
   };
@@ -117,11 +139,13 @@ Each object must have:
     ? platforms.map(p => PLATFORM_DOMAINS[p]).filter(Boolean)
     : Object.values(PLATFORM_DOMAINS);
 
+  const activeExaKey = exaApiKey || apiKey;
+
   try {
     // Step 1: Search for job postings on selected platforms
     const searchRes = await fetch('https://api.exa.ai/search', {
       method: 'POST',
-      headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
+      headers: { 'x-api-key': activeExaKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         query: `${position} job opening hiring apply now`,
         numResults: 20,
@@ -137,7 +161,6 @@ Each object must have:
       return res.status(400).json({ success: false, message: searchData.error });
     }
 
-
     if (!searchData.results || searchData.results.length === 0) {
       return res.json({ success: true, results: [], message: 'No job listings found. Try different platforms or position.' });
     }
@@ -149,7 +172,7 @@ Each object must have:
     try {
       const contentsRes = await fetch('https://api.exa.ai/contents', {
         method: 'POST',
-        headers: { 'x-api-key': exaApiKey, 'Content-Type': 'application/json' },
+        headers: { 'x-api-key': activeExaKey, 'Content-Type': 'application/json' },
         body: JSON.stringify({ ids, text: true }),
       });
       const contentsData = await contentsRes.json();
@@ -157,6 +180,7 @@ Each object must have:
         contentsData.results.forEach(c => { contentMap[c.id] = c.text || ''; });
       }
     } catch (_) { /* contents fetch is optional */ }
+
 
     // Step 3: Process and enrich results
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
