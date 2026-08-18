@@ -51,8 +51,7 @@ Each object must have:
 - "hrEmail": official HR or careers email (e.g. careers@companydomain.com)
 - "candidateEmails": array of 3 candidate emails: ["careers@companydomain.com", "hr@companydomain.com", "talent@companydomain.com"]
 - "isGuessed": boolean true`;
-
-      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+      let geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -61,8 +60,23 @@ Each object must have:
         })
       });
 
-      const geminiData = await geminiRes.json();
+      let geminiData = await geminiRes.json();
+      
+      // Fallback to gemini-1.5-pro if flash returns model error
+      if (geminiData.error && geminiData.error.message && geminiData.error.message.includes('not available')) {
+        geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            tools: [{ googleSearch: {} }]
+          })
+        });
+        geminiData = await geminiRes.json();
+      }
+
       if (geminiData.error) {
+
         return res.status(400).json({ success: false, message: geminiData.error.message || 'Gemini API error' });
       }
 
