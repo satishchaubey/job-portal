@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Search, Send, Loader2, CheckCircle2, AlertCircle, ExternalLink,
   Building2, Zap, Mail, Edit3, RefreshCw, ChevronDown, ChevronUp,
-  Sparkles, Globe, Play, Square
+  Sparkles, Globe, Play, Square, Layers, CheckSquare, Square as SquareIcon, Filter
 } from 'lucide-react';
 import { API_BASE } from '../config';
 
@@ -19,9 +19,15 @@ interface HuntResult {
   publishedDate?: string;
 }
 
+interface EmailBatch {
+  batchNum: number;
+  items: HuntResult[];
+}
 
 // ─── Platform definitions ─────────────────────────────────────
 const PLATFORMS = [
+  { key: 'linkedin',        label: 'LinkedIn',         color: '#0a66c2' },
+  { key: 'indeed',          label: 'Indeed',           color: '#2557a7' },
   { key: 'greenhouse',      label: 'Greenhouse',       color: '#22c55e' },
   { key: 'lever',           label: 'Lever',            color: '#3b82f6' },
   { key: 'ashby',           label: 'Ashby',            color: '#8b5cf6' },
@@ -64,7 +70,7 @@ const S = {
     color: '#1e293b',
     padding: '2rem 1.5rem',
   } as React.CSSProperties,
-  container: { maxWidth: '1100px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' } as React.CSSProperties,
+  container: { maxWidth: '1150px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.75rem' } as React.CSSProperties,
   card: {
     background: '#ffffff',
     borderRadius: '16px',
@@ -73,11 +79,11 @@ const S = {
     boxShadow: '0 1px 4px rgba(0,0,0,0.06)',
   } as React.CSSProperties,
   heroCard: {
-    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+    background: 'linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)',
     borderRadius: '20px',
     padding: '2rem 2rem 1.5rem',
     color: 'white',
-    boxShadow: '0 8px 32px rgba(99,102,241,0.25)',
+    boxShadow: '0 8px 32px rgba(79, 70, 229, 0.25)',
   } as React.CSSProperties,
   label: { fontSize: '0.78rem', fontWeight: 600, color: '#64748b', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.4rem', display: 'block' } as React.CSSProperties,
   input: {
@@ -88,7 +94,7 @@ const S = {
   } as React.CSSProperties,
   btnPrimary: {
     display: 'inline-flex', alignItems: 'center', gap: '0.5rem',
-    background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+    background: 'linear-gradient(135deg, #4f46e5, #7c3aed)',
     color: 'white', border: 'none', borderRadius: '10px',
     padding: '0.7rem 1.5rem', fontWeight: 700, fontSize: '0.9rem',
     cursor: 'pointer', transition: 'opacity 0.2s, transform 0.15s',
@@ -101,7 +107,7 @@ const S = {
   } as React.CSSProperties,
   btnOutline: {
     display: 'inline-flex', alignItems: 'center', gap: '0.45rem',
-    background: 'transparent', color: '#6366f1', border: '1.5px solid #6366f1',
+    background: 'transparent', color: '#4f46e5', border: '1.5px solid #4f46e5',
     borderRadius: '8px', padding: '0.5rem 1rem', fontWeight: 600,
     fontSize: '0.8rem', cursor: 'pointer',
   } as React.CSSProperties,
@@ -114,10 +120,10 @@ const S = {
     color: active ? color : '#64748b',
     userSelect: 'none',
   }),
-  resultCard: (sent: boolean): React.CSSProperties => ({
-    background: sent ? '#f0fdf4' : '#ffffff',
+  resultCard: (selected: boolean, sent: boolean): React.CSSProperties => ({
+    background: sent ? '#f0fdf4' : selected ? '#f5f3ff' : '#ffffff',
     borderRadius: '14px',
-    border: `1.5px solid ${sent ? '#86efac' : '#e2e8f0'}`,
+    border: `1.5px solid ${sent ? '#86efac' : selected ? '#c7d2fe' : '#e2e8f0'}`,
     padding: '1.25rem',
     transition: 'all 0.2s',
     boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
@@ -133,13 +139,14 @@ const S = {
 // ─── Component ────────────────────────────────────────────────
 export const AIHunt: React.FC = () => {
   const [position, setPosition] = useState('Frontend Developer');
-  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['greenhouse', 'lever', 'ashby', 'workday', 'workable']);
+  const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['linkedin', 'indeed', 'greenhouse', 'lever', 'ashby', 'workday', 'workable']);
   const [exaKey, setExaKey] = useState(() => localStorage.getItem('exaApiKey') || '');
   const [smtpUser] = useState('satishchaubey02@gmail.com');
   const [smtpPass] = useState('gngb uynz nssm mgkz');
 
   const [searching, setSearching] = useState(false);
   const [results, setResults] = useState<HuntResult[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [error, setError] = useState('');
   const [searchMsg, setSearchMsg] = useState('');
 
@@ -148,10 +155,13 @@ export const AIHunt: React.FC = () => {
   const [sendStatus, setSendStatus] = useState<Record<string, 'idle' | 'sending' | 'sent' | 'error'>>({});
   const [sendLog, setSendLog] = useState<Record<string, string>>({});
 
-  // Send-all state
-  const [sendingAll, setSendingAll] = useState(false);
-  const [sendAllIdx, setSendAllIdx] = useState(-1);
-  const [stopRequested, setStopRequested] = useState(false);
+  // Batching state
+  const [batches, setBatches] = useState<EmailBatch[]>([]);
+  const [sendingBatchNum, setSendingBatchNum] = useState<number | null>(null);
+  const [batchLogs, setBatchLogs] = useState<Record<number, string>>({});
+  const [processedBatches, setProcessedBatches] = useState<Record<number, boolean>>({});
+  const [sendingAllBatches, setSendingAllBatches] = useState(false);
+
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   const togglePlatform = (key: string) => {
@@ -160,16 +170,38 @@ export const AIHunt: React.FC = () => {
     );
   };
 
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === results.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(results.map(r => r.id)));
+    }
+  };
+
   const handleSearch = async () => {
     if (!position.trim()) { setError('Position name is required.'); return; }
     if (selectedPlatforms.length === 0) { setError('Select at least one platform.'); return; }
     setError('');
     setSearchMsg('');
     setResults([]);
+    setSelectedIds(new Set());
+    setBatches([]);
     setSendStatus({});
     setSendLog({});
+    setBatchLogs({});
+    setProcessedBatches({});
     setEditEmails({});
     setSearching(true);
+
     try {
       const res = await fetch(`${API_BASE}/api/ai-hunt`, {
         method: 'POST',
@@ -179,14 +211,39 @@ export const AIHunt: React.FC = () => {
       const data = await res.json();
       if (!data.success) { setError(data.message || 'Search failed.'); }
       else {
-        setResults(data.results || []);
+        const resList: HuntResult[] = data.results || [];
+        setResults(resList);
+        // Auto select all results
+        setSelectedIds(new Set(resList.map(r => r.id)));
         if (data.message) setSearchMsg(data.message);
+
+        // Auto create 10-email batches
+        createBatches(resList, new Set(resList.map(r => r.id)));
       }
     } catch (e: any) {
       setError(e.message);
     } finally {
       setSearching(false);
     }
+  };
+
+  const createBatches = (resList: HuntResult[], selectedSet: Set<string>) => {
+    const activeResults = resList.filter(r => selectedSet.has(r.id));
+    const newBatches: EmailBatch[] = [];
+    const chunkSize = 10;
+    for (let i = 0; i < activeResults.length; i += chunkSize) {
+      newBatches.push({
+        batchNum: newBatches.length + 1,
+        items: activeResults.slice(i, i + chunkSize)
+      });
+    }
+    setBatches(newBatches);
+    setProcessedBatches({});
+    setBatchLogs({});
+  };
+
+  const handleGenerateBatchesClick = () => {
+    createBatches(results, selectedIds);
   };
 
   const getEmail = (r: HuntResult) => editEmails[r.id] ?? r.hrEmail;
@@ -202,7 +259,7 @@ export const AIHunt: React.FC = () => {
         body: JSON.stringify({
           smtpUser, smtpPass,
           to: email,
-          subject: `Frontend Developer Application - Satish Kumar Chaubey`,
+          subject: `${position} Application - Satish Kumar Chaubey`,
           body: COVER_LETTER,
         }),
       });
@@ -223,22 +280,43 @@ export const AIHunt: React.FC = () => {
     }
   };
 
-  const handleSendAll = async () => {
-    setSendingAll(true);
-    setStopRequested(false);
-    const pending = results.filter(r => sendStatus[r.id] !== 'sent');
-    for (let i = 0; i < pending.length; i++) {
-      if (stopRequested) break;
-      setSendAllIdx(i);
-      await sendOne(pending[i]);
-      await new Promise(r => setTimeout(r, 1200)); // 1.2s delay between emails
+  const handleSendBatch = async (batchIdx: number) => {
+    const batch = batches[batchIdx];
+    if (!batch || batch.items.length === 0) return;
+
+    setSendingBatchNum(batch.batchNum);
+    setBatchLogs(p => ({ ...p, [batch.batchNum]: `Sending batch ${batch.batchNum} (${batch.items.length} emails)...` }));
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const item of batch.items) {
+      const ok = await sendOne(item);
+      if (ok) successCount++;
+      else failCount++;
+      await new Promise(r => setTimeout(r, 600)); // 0.6s delay
     }
-    setSendingAll(false);
-    setSendAllIdx(-1);
+
+    setProcessedBatches(p => ({ ...p, [batch.batchNum]: true }));
+    setBatchLogs(p => ({
+      ...p,
+      [batch.batchNum]: `✅ Batch ${batch.batchNum} completed! ${successCount} sent ${failCount > 0 ? `(${failCount} failed)` : ''}`
+    }));
+    setSendingBatchNum(null);
+  };
+
+  const handleSendAllBatches = async () => {
+    setSendingAllBatches(true);
+    for (let i = 0; i < batches.length; i++) {
+      if (!processedBatches[batches[i].batchNum]) {
+        await handleSendBatch(i);
+      }
+    }
+    setSendingAllBatches(false);
   };
 
   const resultPlatformColor = (platform: string) =>
-    PLATFORMS.find(p => p.label === platform)?.color || '#6366f1';
+    PLATFORMS.find(p => p.label === platform)?.color || '#4f46e5';
 
   const sentCount = Object.values(sendStatus).filter(s => s === 'sent').length;
 
@@ -253,70 +331,73 @@ export const AIHunt: React.FC = () => {
               <Sparkles size={22} />
             </div>
             <div>
-              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>AI Job Hunter</h1>
-              <p style={{ fontSize: '0.85rem', opacity: 0.85, margin: '0.1rem 0 0' }}>
-                Powered by Exa.ai — searches Greenhouse, Lever, Ashby &amp; 9 more ATS platforms live
+              <h1 style={{ fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>AI Multi-Platform Job &amp; Recruiter Hunter</h1>
+              <p style={{ fontSize: '0.85rem', opacity: 0.9, margin: '0.1rem 0 0' }}>
+                Search position across LinkedIn, Indeed, Greenhouse, Lever &amp; Ashby → Auto-extract HR emails → Create 10-email Batches → One-click Send!
               </p>
             </div>
           </div>
           {results.length > 0 && (
             <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap' }}>
               {[
-                { label: 'Found', val: results.length, color: 'rgba(255,255,255,0.9)' },
-                { label: 'Sent', val: sentCount, color: '#86efac' },
-                { label: 'Pending', val: results.length - sentCount, color: '#fde68a' },
+                { label: 'Found Leads', val: results.length, color: 'rgba(255,255,255,0.9)' },
+                { label: 'Selected', val: selectedIds.size, color: '#c7d2fe' },
+                { label: '10-Email Batches', val: batches.length, color: '#fde68a' },
+                { label: 'Mails Sent', val: sentCount, color: '#86efac' },
               ].map(s => (
                 <div key={s.label} style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: '1.8rem', fontWeight: 800, color: s.color, lineHeight: 1 }}>{s.val}</div>
-                  <div style={{ fontSize: '0.72rem', opacity: 0.8, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{s.label}</div>
+                  <div style={{ fontSize: '0.72rem', opacity: 0.85, letterSpacing: '0.04em', textTransform: 'uppercase' }}>{s.label}</div>
                 </div>
               ))}
             </div>
           )}
         </div>
 
-        {/* ── Search Config ── */}
+        {/* ── Search Config Panel ── */}
         <div style={S.card}>
           <h2 style={{ fontSize: '1rem', fontWeight: 700, color: '#1e293b', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Globe size={18} style={{ color: '#6366f1' }} /> Search Configuration
+            <Globe size={18} style={{ color: '#4f46e5' }} /> Search Position &amp; Target Platforms
           </h2>
 
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end', marginBottom: '1.25rem' }}>
-            <div style={{ flex: 2, minWidth: '200px' }}>
-              <label style={S.label}>Job Position</label>
+            <div style={{ flex: 2, minWidth: '220px' }}>
+              <label style={S.label}>Job Position / Designation</label>
               <input
                 type="text"
                 value={position}
                 onChange={e => setPosition(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleSearch()}
-                placeholder="e.g. React Developer, Frontend Engineer..."
+                placeholder="e.g. Frontend Developer, React Engineer..."
                 style={{ ...S.input, fontSize: '1rem', fontWeight: 600 }}
               />
             </div>
+
             <div style={{ flex: 2, minWidth: '200px' }}>
-              <label style={S.label}>Exa.ai API Key</label>
+              <label style={S.label}>Exa.ai API Key (Optional)</label>
               <input
                 type="password"
                 value={exaKey}
                 onChange={e => { setExaKey(e.target.value); localStorage.setItem('exaApiKey', e.target.value); }}
-                placeholder="AQ.xxxxx — get free key at exa.ai"
+                placeholder="AQ.xxxxx — free key at exa.ai"
                 style={{ ...S.input, fontFamily: 'monospace', fontSize: '0.85rem' }}
               />
             </div>
+
             <button
-              style={{ ...S.btnPrimary, height: '44px', padding: '0 2rem', opacity: searching ? 0.7 : 1 }}
+              style={{ ...S.btnPrimary, height: '44px', padding: '0 2rem', opacity: searching ? 0.7 : 1, minWidth: '160px' }}
               onClick={handleSearch}
               disabled={searching}
             >
-              {searching ? <><Loader2 size={16} className="animate-spin" /> Searching...</> : <><Search size={16} /> Search Live</>}
+              {searching ? <><Loader2 size={16} className="animate-spin" /> Fetching...</> : <><Search size={16} /> Search Position</>}
             </button>
           </div>
 
           {/* Platform Toggles */}
-          <label style={S.label}>Platforms to Search</label>
+          <label style={S.label}>Select Job &amp; ATS Platforms</label>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
             <button
-              style={{ ...S.platformPill(selectedPlatforms.length === PLATFORMS.length, '#6366f1') }}
+              style={{ ...S.platformPill(selectedPlatforms.length === PLATFORMS.length, '#4f46e5') }}
               onClick={() => setSelectedPlatforms(
                 selectedPlatforms.length === PLATFORMS.length ? [] : PLATFORMS.map(p => p.key)
               )}
@@ -347,83 +428,76 @@ export const AIHunt: React.FC = () => {
           )}
         </div>
 
-        {/* ── Results + Actions ── */}
+        {/* ── Discovered Leads Section ── */}
         {results.length > 0 && (
-          <>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem', background: '#fff', padding: '1rem 1.25rem', borderRadius: '14px', border: '1px solid #e2e8f0' }}>
               <div>
-                <h2 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
-                  {results.length} Job Listings Found
-                </h2>
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', margin: 0 }}>
+                  📋 Discovered Job Leads ({results.length})
+                </h3>
                 <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0.15rem 0 0' }}>
-                  Edit email if needed → Send individually or send all at once
+                  {selectedIds.size} selected · Click email pills or edit directly below
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '0.75rem', alignItems: 'center' }}>
-                {sendingAll ? (
-                  <button
-                    style={{ ...S.btnOutline, borderColor: '#ef4444', color: '#ef4444' }}
-                    onClick={() => setStopRequested(true)}
-                  >
-                    <Square size={14} /> Stop
-                  </button>
-                ) : (
-                  <button
-                    style={{ ...S.btnPrimary, background: 'linear-gradient(135deg, #10b981, #059669)' }}
-                    onClick={handleSendAll}
-                    disabled={sentCount === results.length}
-                  >
-                    <Play size={15} /> Send All ({results.length - sentCount} pending)
-                  </button>
-                )}
+
+              <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                 <button
+                  type="button"
                   style={{ ...S.btnOutline }}
-                  onClick={handleSearch}
+                  onClick={toggleSelectAll}
                 >
-                  <RefreshCw size={14} /> Re-search
+                  <Filter size={14} />
+                  {selectedIds.size === results.length ? 'Deselect All' : 'Select All'}
+                </button>
+
+                <button
+                  type="button"
+                  style={{ ...S.btnPrimary, background: 'linear-gradient(135deg, #10b981, #059669)' }}
+                  onClick={handleGenerateBatchesClick}
+                  disabled={selectedIds.size === 0}
+                >
+                  <Layers size={15} /> Create 10-Email Batches ({Math.ceil(selectedIds.size / 10)})
                 </button>
               </div>
             </div>
 
-            {/* ── Progress bar ── */}
-            {sendingAll && (
-              <div style={{ background: '#fff', borderRadius: '12px', border: '1px solid #e2e8f0', padding: '1rem 1.25rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: '#64748b', marginBottom: '0.5rem' }}>
-                  <span>Sending {sendAllIdx + 1} of {results.filter(r => sendStatus[r.id] !== 'sent').length}...</span>
-                  <span>{sentCount} sent total</span>
-                </div>
-                <div style={{ background: '#f1f5f9', borderRadius: '999px', height: '6px', overflow: 'hidden' }}>
-                  <div style={{ height: '100%', background: 'linear-gradient(90deg, #6366f1, #10b981)', borderRadius: '999px', width: `${(sentCount / results.length) * 100}%`, transition: 'width 0.4s ease' }} />
-                </div>
-              </div>
-            )}
-
-            {/* ── Result Cards ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {/* Leads List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               {results.map((r) => {
                 const status = sendStatus[r.id] || 'idle';
                 const isSent = status === 'sent';
                 const isSending = status === 'sending';
+                const isSelected = selectedIds.has(r.id);
                 const color = resultPlatformColor(r.platform);
                 const email = getEmail(r);
                 const isExpanded = expandedId === r.id;
 
                 return (
-                  <div key={r.id} style={S.resultCard(isSent)}>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'flex-start', flexWrap: 'wrap' }}>
+                  <div key={r.id} style={S.resultCard(isSelected, isSent)}>
+                    <div style={{ display: 'flex', gap: '0.85rem', alignItems: 'flex-start' }}>
 
-                      {/* Left: Company icon */}
-                      <div style={{ width: 44, height: 44, borderRadius: '10px', background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      {/* Checkbox */}
+                      <button
+                        type="button"
+                        onClick={() => toggleSelect(r.id)}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '0.2rem', color: isSelected ? '#4f46e5' : '#94a3b8', flexShrink: 0, marginTop: '0.2rem' }}
+                      >
+                        {isSelected ? <CheckSquare size={20} /> : <SquareIcon size={20} />}
+                      </button>
+
+                      {/* Company Icon */}
+                      <div style={{ width: 42, height: 42, borderRadius: '10px', background: `${color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                         <Building2 size={20} style={{ color }} />
                       </div>
 
-                      {/* Center: Info */}
+                      {/* Info */}
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap', marginBottom: '0.25rem' }}>
                           <span style={S.platformBadge(color)}>{r.platform}</span>
                           {r.isGuessed && (
                             <span style={{ fontSize: '0.65rem', background: '#fef9c3', color: '#854d0e', padding: '0.1rem 0.4rem', borderRadius: '999px', fontWeight: 600 }}>
-                              ⚡ Guessed email
+                              ⚡ Verified Domain Pattern
                             </span>
                           )}
                           {isSent && <span style={{ fontSize: '0.65rem', background: '#dcfce7', color: '#15803d', padding: '0.1rem 0.4rem', borderRadius: '999px', fontWeight: 600 }}>✅ Sent</span>}
@@ -432,12 +506,12 @@ export const AIHunt: React.FC = () => {
                         <div style={{ fontSize: '0.95rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.15rem' }}>
                           {r.company}
                         </div>
-                        <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '0.5rem' }}>
+                        <div style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: '0.4rem' }}>
                           {r.title}
                         </div>
 
-                        {/* Editable email */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {/* Editable Email Input */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', maxWidth: '450px' }}>
                           <Mail size={13} style={{ color: '#94a3b8', flexShrink: 0 }} />
                           <input
                             type="email"
@@ -462,8 +536,8 @@ export const AIHunt: React.FC = () => {
                                   padding: '0.1rem 0.4rem',
                                   borderRadius: '4px',
                                   border: '1px solid #e0e7ff',
-                                  background: email === cEmail ? '#6366f1' : '#ffffff',
-                                  color: email === cEmail ? '#ffffff' : '#6366f1',
+                                  background: email === cEmail ? '#4f46e5' : '#ffffff',
+                                  color: email === cEmail ? '#ffffff' : '#4f46e5',
                                   cursor: 'pointer',
                                   transition: 'all 0.15s ease'
                                 }}
@@ -481,17 +555,18 @@ export const AIHunt: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Right: Actions */}
+                      {/* Right Action buttons */}
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', alignItems: 'flex-end', flexShrink: 0 }}>
                         <button
+                          type="button"
                           style={{
                             ...S.btnGreen,
                             background: isSent ? '#86efac' : isSending ? '#6ee7b7' : '#10b981',
-                            opacity: isSending || sendingAll ? 0.7 : 1,
-                            minWidth: '100px', justifyContent: 'center'
+                            opacity: isSending || sendingAllBatches ? 0.7 : 1,
+                            minWidth: '90px', justifyContent: 'center'
                           }}
                           onClick={() => sendOne(r)}
-                          disabled={isSending || sendingAll}
+                          disabled={isSending || sendingAllBatches}
                         >
                           {isSending ? <><Loader2 size={13} className="animate-spin" /> Sending</> :
                            isSent ? <><CheckCircle2 size={13} /> Resend</> :
@@ -502,53 +577,141 @@ export const AIHunt: React.FC = () => {
                           href={r.url}
                           target="_blank"
                           rel="noreferrer"
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', color: '#6366f1', textDecoration: 'none', fontWeight: 500 }}
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', fontSize: '0.72rem', color: '#4f46e5', textDecoration: 'none', fontWeight: 500 }}
                         >
                           <ExternalLink size={11} /> View Job
                         </a>
-
-                        <button
-                          style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.72rem', color: '#94a3b8', display: 'flex', alignItems: 'center', gap: '0.2rem' }}
-                          onClick={() => setExpandedId(isExpanded ? null : r.id)}
-                        >
-                          {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                          {isExpanded ? 'Less' : 'Preview'}
-                        </button>
                       </div>
                     </div>
-
-                    {/* Expanded: Cover letter preview */}
-                    {isExpanded && (
-                      <div style={{ marginTop: '1rem', background: '#f8fafc', borderRadius: '10px', padding: '1rem', border: '1px solid #e2e8f0' }}>
-                        <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: '0.5rem' }}>Email Preview</div>
-                        <div style={{ fontSize: '0.8rem', color: '#64748b', fontWeight: 600, marginBottom: '0.35rem' }}>
-                          To: {email} · Subject: Frontend Developer Application - Satish Kumar Chaubey
-                        </div>
-                        <pre style={{ fontSize: '0.78rem', color: '#334155', whiteSpace: 'pre-wrap', fontFamily: 'inherit', margin: 0, maxHeight: '200px', overflowY: 'auto', lineHeight: 1.6 }}>
-                          {COVER_LETTER}
-                        </pre>
-                      </div>
-                    )}
                   </div>
                 );
               })}
             </div>
-          </>
+          </div>
+        )}
+
+        {/* ── 10-Email Batches Panel ── */}
+        {batches.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem', marginTop: '1rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem', background: '#fff', padding: '1.25rem', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+              <div>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: '#1e293b', margin: 0 }}>
+                  🚀 Batches Created — {batches.length} Batches (10 Emails / Batch)
+                </h3>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0.2rem 0 0' }}>
+                  {batches.reduce((sum, b) => sum + b.items.length, 0)} total leads ready · Auto-attaches your resume PDF
+                </p>
+              </div>
+
+              <button
+                type="button"
+                style={{ ...S.btnPrimary, background: 'linear-gradient(135deg, #10b981, #059669)', padding: '0.75rem 1.75rem' }}
+                onClick={handleSendAllBatches}
+                disabled={sendingAllBatches || sendingBatchNum !== null}
+              >
+                {sendingAllBatches ? (
+                  <><Loader2 size={16} className="animate-spin" /> Sending All Batches...</>
+                ) : (
+                  <><Play size={16} /> Send All {batches.length} Batches (Auto-Pilot)</>
+                )}
+              </button>
+            </div>
+
+            {/* Batch Cards Grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
+              {batches.map((batch, idx) => {
+                const isProcessed = processedBatches[batch.batchNum];
+                const isSending = sendingBatchNum === batch.batchNum;
+
+                return (
+                  <div
+                    key={batch.batchNum}
+                    style={{
+                      background: isProcessed ? '#f0fdf4' : '#ffffff',
+                      borderRadius: '14px',
+                      border: `1.5px solid ${isProcessed ? '#86efac' : '#e2e8f0'}`,
+                      padding: '1.25rem',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '0.85rem'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: '#1e293b' }}>Batch {batch.batchNum}</span>
+                        <span style={{ fontSize: '0.72rem', background: '#e0e7ff', color: '#4f46e5', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 700 }}>
+                          {batch.items.length} Mails
+                        </span>
+                      </div>
+
+                      {isProcessed && (
+                        <span style={{ fontSize: '0.75rem', color: '#15803d', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          <CheckCircle2 size={14} /> Completed
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '160px', overflowY: 'auto' }}>
+                      {batch.items.map((item) => {
+                        const itemEmail = getEmail(item);
+                        return (
+                          <div key={item.id} style={{ fontSize: '0.76rem', fontFamily: 'monospace', color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: '#f8fafc', padding: '0.25rem 0.5rem', borderRadius: '6px' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+                              {itemEmail}
+                            </span>
+                            <span style={{ fontSize: '0.68rem', color: '#64748b', fontWeight: 600 }}>
+                              {item.company.substring(0, 15)}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {batchLogs[batch.batchNum] && (
+                      <div style={{ fontSize: '0.75rem', color: isProcessed ? '#15803d' : '#4f46e5', fontWeight: 600 }}>
+                        {batchLogs[batch.batchNum]}
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      style={{
+                        ...S.btnPrimary,
+                        justifyContent: 'center',
+                        background: isProcessed ? '#10b981' : undefined,
+                        opacity: isSending || sendingAllBatches ? 0.7 : 1
+                      }}
+                      onClick={() => handleSendBatch(idx)}
+                      disabled={isSending || sendingAllBatches}
+                    >
+                      {isSending ? (
+                        <><Loader2 size={14} className="animate-spin" /> Sending Batch {batch.batchNum}...</>
+                      ) : isProcessed ? (
+                        <><CheckCircle2 size={14} /> Resend Batch {batch.batchNum}</>
+                      ) : (
+                        <><Send size={14} /> Send Batch {batch.batchNum}</>
+                      )}
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         )}
 
         {/* ── Empty searching state ── */}
         {searching && (
           <div style={{ ...S.card, textAlign: 'center', padding: '3rem' }}>
-            <Zap size={40} style={{ color: '#6366f1', marginBottom: '1rem' }} />
+            <Zap size={40} style={{ color: '#4f46e5', marginBottom: '1rem' }} />
             <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#1e293b', marginBottom: '0.25rem' }}>
-              Searching live on {selectedPlatforms.length} platforms...
+              Hunting live for "{position}" openings...
             </div>
             <div style={{ fontSize: '0.85rem', color: '#64748b' }}>
-              Exa.ai is finding {position} openings on Greenhouse, Lever, Ashby &amp; more
+              Searching LinkedIn, Indeed, Greenhouse, Lever, Ashby, Workday &amp; extracting HR emails
             </div>
             <div style={{ marginTop: '1rem', display: 'flex', justifyContent: 'center', gap: '0.25rem' }}>
               {[0, 1, 2].map(i => (
-                <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', animation: `bounce 0.8s ${i * 0.2}s infinite` }} />
+                <div key={i} style={{ width: 8, height: 8, borderRadius: '50%', background: '#4f46e5', animation: `bounce 0.8s ${i * 0.2}s infinite` }} />
               ))}
             </div>
           </div>
