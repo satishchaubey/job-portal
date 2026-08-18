@@ -1,0 +1,24 @@
+# Render.com Deployment Configuration for SheetSync Campaign Backend
+# This deploys server.js as a Web Service on Render (Free Tier)
+# 
+# Instructions:
+# 1. Go to https://render.com and sign up / login
+# 2. Click "New +" → "Web Service"
+# 3. Connect your GitHub repo: satishchaubey/job-portal
+# 4. Render will auto-detect this render.yaml and configure everything
+
+services:
+  - type: web
+    name: sheetsync-backend
+    runtime: node
+    region: singapore  # Closest free region to India
+    plan: free
+    branch: master
+    buildCommand: npm install
+    startCommand: node server.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 3001
+    healthCheckPath: /api/health
