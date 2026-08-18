@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileSpreadsheet, Sparkles, RefreshCw, Layers, Table, ChevronRight, Send, Building, Zap, Mail } from 'lucide-react';
+import { FileSpreadsheet, Sparkles, RefreshCw, Layers, Table, ChevronRight, Send, Building, Zap, Mail, Menu, X } from 'lucide-react';
 import { UploadZone } from './components/UploadZone';
 import { StatsDashboard } from './components/StatsDashboard';
 import { TableView } from './components/TableView';
@@ -16,9 +16,11 @@ function App() {
   const [fileName, setFileName] = useState<string>('');
   const [selectedContact, setSelectedContact] = useState<any | null>(null);
   const [activeTab, setActiveTab] = useState<'table' | 'campaign'>('table');
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  // Client-side router state ('/' | '/jobs' | '/agent')
+  // Client-side router state
   const [route, setRoute] = useState(window.location.pathname);
+
 
   useEffect(() => {
     const handleLocationChange = () => {
@@ -88,23 +90,38 @@ function App() {
             <FileSpreadsheet size={24} style={{ color: 'white' }} />
           </div>
           <div>
-            <h1 className="brand-title">SheetSync Campaign</h1>
-            <p className="brand-subtitle">Interactive Lead & Bulk Mailer Suite</p>
+            <h1 className="brand-title">SheetSync</h1>
+            <p className="brand-subtitle desktop-only">Interactive Lead & Bulk Mailer Suite</p>
           </div>
         </div>
 
-        {/* Client Route Tabs */}
-        <nav style={{ display: 'flex', gap: '0.5rem', background: 'var(--bg-glass)', padding: '0.35rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+        {/* Mobile Hamburger Toggle Button */}
+        <button
+          type="button"
+          onClick={() => setMobileMenuOpen(prev => !prev)}
+          className="mobile-hamburger-btn"
+          style={{
+            background: '#ffffff',
+            border: '1px solid var(--border-color)',
+            padding: '0.5rem',
+            borderRadius: '10px',
+            cursor: 'pointer',
+            color: 'var(--text-primary)',
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'center'
+          }}
+        >
+          {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+
+        {/* Desktop Navigation */}
+        <nav className="desktop-nav-bar" style={{ display: 'flex', gap: '0.35rem', background: '#ffffff', padding: '0.35rem', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
           <button
             type="button"
             className={route === '/' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => navigate('/')}
-            style={{ 
-              padding: '0.45rem 0.85rem', 
-              fontSize: '0.8rem', 
-              border: 'none', 
-              background: route === '/' ? undefined : 'transparent' 
-            }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: route === '/' ? undefined : 'transparent' }}
           >
             <Table size={14} style={{ marginRight: '0.25rem' }} />
             Contacts Manager
@@ -114,12 +131,7 @@ function App() {
             type="button"
             className={route === '/direct-send' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => navigate('/direct-send')}
-            style={{ 
-              padding: '0.45rem 0.85rem', 
-              fontSize: '0.8rem', 
-              border: 'none', 
-              background: route === '/direct-send' ? undefined : 'transparent' 
-            }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: route === '/direct-send' ? undefined : 'transparent' }}
           >
             <Send size={14} style={{ marginRight: '0.25rem' }} />
             Quick Direct Mail
@@ -129,12 +141,7 @@ function App() {
             type="button"
             className={route === '/bulk-paste' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => navigate('/bulk-paste')}
-            style={{ 
-              padding: '0.45rem 0.85rem', 
-              fontSize: '0.8rem', 
-              border: 'none', 
-              background: route === '/bulk-paste' ? undefined : 'transparent' 
-            }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: route === '/bulk-paste' ? undefined : 'transparent' }}
           >
             <Layers size={14} style={{ marginRight: '0.25rem' }} />
             Bulk Paste Mailer
@@ -144,14 +151,7 @@ function App() {
             type="button"
             className={route === '/fintech-dir' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => navigate('/fintech-dir')}
-            style={{ 
-              padding: '0.45rem 0.85rem', 
-              fontSize: '0.8rem', 
-              border: 'none', 
-              background: route === '/fintech-dir' ? undefined : 'transparent',
-              borderColor: route === '/fintech-dir' ? undefined : 'rgba(245, 158, 11, 0.3)',
-              color: route === '/fintech-dir' ? undefined : '#f59e0b'
-            }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: route === '/fintech-dir' ? undefined : 'transparent', color: route === '/fintech-dir' ? undefined : '#f59e0b' }}
           >
             <Building size={14} style={{ marginRight: '0.25rem' }} />
             Fintech Directory NCR
@@ -161,13 +161,7 @@ function App() {
             type="button"
             className={route === '/ai-hunt' ? 'btn-primary' : 'btn-secondary'}
             onClick={() => navigate('/ai-hunt')}
-            style={{
-              padding: '0.45rem 0.85rem',
-              fontSize: '0.8rem',
-              border: 'none',
-              background: route === '/ai-hunt' ? 'linear-gradient(135deg,#6366f1,#8b5cf6)' : 'transparent',
-              color: route === '/ai-hunt' ? 'white' : '#818cf8',
-            }}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: route === '/ai-hunt' ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent', color: route === '/ai-hunt' ? 'white' : '#4f46e5' }}
           >
             <Zap size={14} style={{ marginRight: '0.25rem' }} />
             AI Job Hunter
@@ -175,12 +169,96 @@ function App() {
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: 0.8 }} className="desktop-only">
-          <Sparkles size={16} style={{ color: '#c084fc' }} />
+          <Sparkles size={16} style={{ color: '#4f46e5' }} />
           <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
             Active Mode: SMTP Enabled
           </span>
         </div>
       </header>
+
+      {/* Mobile Hamburger Expandable Drawer Menu */}
+      {mobileMenuOpen && (
+        <div
+          className="mobile-drawer-menu"
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '0.5rem',
+            background: '#ffffff',
+            border: '1px solid var(--border-color)',
+            borderRadius: '16px',
+            padding: '0.75rem',
+            marginBottom: '1rem',
+            boxShadow: 'var(--shadow-lg)',
+            animation: 'fadeIn 0.2s ease'
+          }}
+        >
+          <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', padding: '0.25rem 0.5rem' }}>
+            Navigation Sections
+          </div>
+
+          <button
+            type="button"
+            onClick={() => { navigate('/'); setMobileMenuOpen(false); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
+              background: route === '/' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+              color: route === '/' ? '#4f46e5' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+            }}
+          >
+            <Table size={18} style={{ color: '#4f46e5' }} /> Contacts Manager
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { navigate('/direct-send'); setMobileMenuOpen(false); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
+              background: route === '/direct-send' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+              color: route === '/direct-send' ? '#4f46e5' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+            }}
+          >
+            <Send size={18} style={{ color: '#4f46e5' }} /> Quick Direct Mail
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { navigate('/bulk-paste'); setMobileMenuOpen(false); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
+              background: route === '/bulk-paste' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+              color: route === '/bulk-paste' ? '#4f46e5' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+            }}
+          >
+            <Layers size={18} style={{ color: '#4f46e5' }} /> Bulk Paste Mailer
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { navigate('/fintech-dir'); setMobileMenuOpen(false); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
+              background: route === '/fintech-dir' ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+              color: route === '/fintech-dir' ? '#d97706' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+            }}
+          >
+            <Building size={18} style={{ color: '#f59e0b' }} /> Fintech Directory NCR
+          </button>
+
+          <button
+            type="button"
+            onClick={() => { navigate('/ai-hunt'); setMobileMenuOpen(false); }}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
+              background: route === '/ai-hunt' ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent',
+              color: route === '/ai-hunt' ? '#ffffff' : '#4f46e5', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+            }}
+          >
+            <Zap size={18} style={{ color: route === '/ai-hunt' ? '#ffffff' : '#4f46e5' }} /> AI Job Hunter
+          </button>
+        </div>
+      )}
+
 
       {/* Route Switcher Render */}
       {route === '/ai-hunt' ? (
