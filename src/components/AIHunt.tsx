@@ -237,7 +237,6 @@ export const AIHunt: React.FC = () => {
     setSendAllIdx(-1);
   };
 
-  const platformInfo = (key: string) => PLATFORMS.find(p => p.key === key);
   const resultPlatformColor = (platform: string) =>
     PLATFORMS.find(p => p.label === platform)?.color || '#6366f1';
 

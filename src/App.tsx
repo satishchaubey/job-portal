@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { FileSpreadsheet, Sparkles, RefreshCw, Layers, Table, ChevronRight, Send, Building, Zap } from 'lucide-react';
+import { FileSpreadsheet, Sparkles, RefreshCw, Layers, Table, ChevronRight, Send, Building, Zap, Mail } from 'lucide-react';
 import { UploadZone } from './components/UploadZone';
 import { StatsDashboard } from './components/StatsDashboard';
 import { TableView } from './components/TableView';
