@@ -109,7 +109,7 @@ function App() {
             color: 'var(--text-primary)',
             display: 'flex',
             alignItems: 'center',
-            justify: 'center'
+            justifyContent: 'center'
           }}
         >
           {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
