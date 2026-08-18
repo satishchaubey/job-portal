@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Mail, CheckCircle2, AlertCircle, Loader2, Paperclip, Send, Layers, Sparkles, Trash2, Play } from 'lucide-react';
+import { Mail, CheckCircle2, Loader2, Paperclip, Send, Layers, Trash2, Play } from 'lucide-react';
 import { API_BASE } from '../config';
 
 export const BulkPasteMailer: React.FC = () => {
@@ -330,7 +330,7 @@ recruiter@techdome.in"
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
-                    justify: 'space-between',
+                    justifyContent: 'space-between',
                     gap: '1rem',
                     background: isProcessed ? 'rgba(16, 185, 129, 0.03)' : 'var(--bg-card)',
                     borderColor: isProcessed ? 'rgba(16, 185, 129, 0.25)' : 'var(--border-color)'

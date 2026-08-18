@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, Loader2, Import, ExternalLink, Check, Briefcase, MapPin, Calendar, HelpCircle, Download } from 'lucide-react';
+import { Search, Loader2, Import, ExternalLink, Check, Briefcase, MapPin, Calendar, Download } from 'lucide-react';
 
 interface Job {
   id: string;

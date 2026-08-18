@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Terminal, Loader2, Play, Import, Check, ExternalLink, ShieldAlert, Cpu, Download } from 'lucide-react';
+import { Terminal, Loader2, Play, Import, Check, ExternalLink, Cpu, Download } from 'lucide-react';
 
 interface Lead {
   company: string;

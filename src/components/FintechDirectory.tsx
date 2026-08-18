@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Search, Briefcase, MapPin, Mail, Building, Send, CheckCircle2, Loader2, Filter, ExternalLink, Download, Layers, Play } from 'lucide-react';
+import { Search, MapPin, Mail, Building, Send, CheckCircle2, Loader2, Filter, ExternalLink, Download, Layers, Play } from 'lucide-react';
 import { API_BASE } from '../config';
 
 interface Company {
