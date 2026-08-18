@@ -315,11 +315,16 @@ body {
   width: 100%;
   background: #ffffff;
   border: 1.5px solid var(--border-color);
-  color: var(--text-primary);
+  color: #0f172a;
   padding: 0.65rem 1rem;
   border-radius: 10px;
   font-size: 0.9rem;
   transition: all 0.2s ease;
+}
+
+select.search-input, select, option {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
 }
 
 .search-input:focus {
@@ -327,6 +332,7 @@ body {
   border-color: var(--border-focus);
   box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.12);
 }
+
 
 /* Tables */
 .table-wrapper {

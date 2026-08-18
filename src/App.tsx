@@ -224,7 +224,7 @@ function App() {
           {!sheetData ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.4s ease' }}>
               <div className="glass-card" style={{ padding: '2rem', textAlign: 'center' }}>
-                <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.5rem', color: '#f3f4f6' }}>
+                <h2 style={{ fontFamily: 'var(--font-heading)', fontSize: '1.75rem', fontWeight: 700, marginBottom: '0.5rem', color: '#0f172a' }}>
                   Explore, Batch & Apply
                 </h2>
                 <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 1.5rem auto', fontSize: '0.95rem' }}>
@@ -235,7 +235,7 @@ function App() {
                     type="button" 
                     className="btn-primary" 
                     onClick={() => navigate('/fintech-dir')}
-                    style={{ fontSize: '0.9rem', background: '#f59e0b', borderColor: '#f59e0b', color: '#090d16' }}
+                    style={{ fontSize: '0.9rem', background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderColor: '#f59e0b', color: '#ffffff' }}
                   >
                     <Building size={16} />
                     Fintech Directory NCR

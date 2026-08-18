@@ -301,16 +301,16 @@ Ghaziabad, Uttar Pradesh`;
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '140px' }}>
             <label className="modal-label">City</label>
             <select value={cityFilter} onChange={e => setCityFilter(e.target.value)} className="search-input"
-              style={{ paddingLeft: '0.5rem', height: '42px', background: '#111827', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}>
-              {CITY_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              style={{ paddingLeft: '0.5rem', height: '42px', background: '#ffffff', color: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+              {CITY_OPTIONS.map(o => <option key={o} value={o} style={{ background: '#ffffff', color: '#0f172a' }}>{o}</option>)}
             </select>
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '140px' }}>
             <label className="modal-label">Type</label>
             <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className="search-input"
-              style={{ paddingLeft: '0.5rem', height: '42px', background: '#111827', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}>
-              {TYPE_OPTIONS.map(o => <option key={o} value={o}>{o}</option>)}
+              style={{ paddingLeft: '0.5rem', height: '42px', background: '#ffffff', color: '#0f172a', border: '1px solid var(--border-color)', borderRadius: '8px' }}>
+              {TYPE_OPTIONS.map(o => <option key={o} value={o} style={{ background: '#ffffff', color: '#0f172a' }}>{o}</option>)}
             </select>
           </div>
 
