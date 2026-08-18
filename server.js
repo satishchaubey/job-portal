@@ -29,10 +29,58 @@ app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
 // AI HUNT: Search job postings on ATS platforms via Exa.ai
 // ─────────────────────────────────────────────────────────────
 app.post('/api/ai-hunt', async (req, res) => {
-  const { position, platforms, exaApiKey } = req.body;
+  const { position, platforms, exaApiKey, geminiApiKey } = req.body;
+  const apiKey = geminiApiKey || exaApiKey;
 
-  if (!position || !exaApiKey) {
-    return res.status(400).json({ success: false, message: 'position and exaApiKey are required.' });
+  if (!position) {
+    return res.status(400).json({ success: false, message: 'position is required.' });
+  }
+
+  // If Gemini API Key is provided (starts with AIza or explicitly passed as geminiApiKey)
+  if (geminiApiKey || (apiKey && apiKey.startsWith('AIza'))) {
+    try {
+      const targetPlatforms = (platforms && platforms.length > 0) ? platforms.join(', ') : 'LinkedIn, Indeed, Greenhouse, Lever, Ashby, Workday';
+      const prompt = `Search live for 15 active ${position} job openings from ${targetPlatforms}.
+Return a strict JSON array of objects without markdown formatting or codeblocks.
+Each object must have:
+- "id": unique string id
+- "title": job position title
+- "company": company name
+- "platform": platform name (LinkedIn, Indeed, Greenhouse, Lever, Ashby, Workday, etc.)
+- "url": active job application link
+- "hrEmail": official HR or careers email (e.g. careers@companydomain.com)
+- "candidateEmails": array of 3 candidate emails: ["careers@companydomain.com", "hr@companydomain.com", "talent@companydomain.com"]
+- "isGuessed": boolean true`;
+
+      const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }],
+          tools: [{ googleSearch: {} }]
+        })
+      });
+
+      const geminiData = await geminiRes.json();
+      if (geminiData.error) {
+        return res.status(400).json({ success: false, message: geminiData.error.message || 'Gemini API error' });
+      }
+
+      const textOutput = geminiData.candidates?.[0]?.content?.parts?.[0]?.text || '';
+      // Clean JSON string
+      const jsonMatch = textOutput.match(/\[[\s\S]*\]/);
+      if (jsonMatch) {
+        const parsedResults = JSON.parse(jsonMatch[0]);
+        return res.json({ success: true, results: parsedResults });
+      }
+    } catch (gErr) {
+      console.error('Gemini search error:', gErr.message);
+      // Fallback to Exa or default company generator
+    }
+  }
+
+  if (!apiKey) {
+    return res.status(400).json({ success: false, message: 'Please provide a Gemini API Key or Exa API Key.' });
   }
 
   const PLATFORM_DOMAINS = {
@@ -59,7 +107,7 @@ app.post('/api/ai-hunt', async (req, res) => {
     // Step 1: Search for job postings on selected platforms
     const searchRes = await fetch('https://api.exa.ai/search', {
       method: 'POST',
-      headers: { 'x-api-key': exaApiKey, 'Content-Type': 'application/json' },
+      headers: { 'x-api-key': apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         query: `${position} job opening hiring apply now`,
         numResults: 20,
@@ -74,6 +122,7 @@ app.post('/api/ai-hunt', async (req, res) => {
     if (searchData.error) {
       return res.status(400).json({ success: false, message: searchData.error });
     }
+
 
     if (!searchData.results || searchData.results.length === 0) {
       return res.json({ success: true, results: [], message: 'No job listings found. Try different platforms or position.' });

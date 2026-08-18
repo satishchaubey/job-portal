@@ -140,6 +140,7 @@ const S = {
 export const AIHunt: React.FC = () => {
   const [position, setPosition] = useState('Frontend Developer');
   const [selectedPlatforms, setSelectedPlatforms] = useState<string[]>(['linkedin', 'indeed', 'greenhouse', 'lever', 'ashby', 'workday', 'workable']);
+  const [geminiKey, setGeminiKey] = useState(() => localStorage.getItem('geminiApiKey') || '');
   const [exaKey, setExaKey] = useState(() => localStorage.getItem('exaApiKey') || '');
   const [smtpUser] = useState('satishchaubey02@gmail.com');
   const [smtpPass] = useState('gngb uynz nssm mgkz');
@@ -206,8 +207,14 @@ export const AIHunt: React.FC = () => {
       const res = await fetch(`${API_BASE}/api/ai-hunt`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ position, platforms: selectedPlatforms, exaApiKey: exaKey }),
+        body: JSON.stringify({
+          position,
+          platforms: selectedPlatforms,
+          exaApiKey: exaKey,
+          geminiApiKey: geminiKey
+        }),
       });
+
       const data = await res.json();
       if (!data.success) { setError(data.message || 'Search failed.'); }
       else {
@@ -374,6 +381,17 @@ export const AIHunt: React.FC = () => {
             </div>
 
             <div style={{ flex: 2, minWidth: '200px' }}>
+              <label style={S.label}>Gemini API Key (Recommended)</label>
+              <input
+                type="password"
+                value={geminiKey}
+                onChange={e => { setGeminiKey(e.target.value); localStorage.setItem('geminiApiKey', e.target.value); }}
+                placeholder="AIzaSy... — Google Gemini API Key"
+                style={{ ...S.input, fontFamily: 'monospace', fontSize: '0.85rem' }}
+              />
+            </div>
+
+            <div style={{ flex: 2, minWidth: '200px' }}>
               <label style={S.label}>Exa.ai API Key (Optional)</label>
               <input
                 type="password"
@@ -383,6 +401,7 @@ export const AIHunt: React.FC = () => {
                 style={{ ...S.input, fontFamily: 'monospace', fontSize: '0.85rem' }}
               />
             </div>
+
 
             <button
               style={{ ...S.btnPrimary, height: '44px', padding: '0 2rem', opacity: searching ? 0.7 : 1, minWidth: '160px' }}
