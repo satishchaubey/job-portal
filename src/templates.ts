@@ -15,7 +15,7 @@ export const ROLE_TEMPLATES: RoleTemplate[] = [
     badge: 'MERN / Next.js',
     subject: 'Application for Full Stack Engineer | 3+ Years Experience | React.js, Next.js, Node.js',
     body: `Dear Hiring Team,
-I am writing to express my interest in Full Stack Engineer / Full Stack Developer opportunities at your organization.
+I am writing to express my interest in Full Stack Engineer opportunities at your organization.
 I am a Full Stack Engineer with 3+ years of professional experience working with React.js, Next.js, JavaScript, TypeScript, Node.js, Express.js, MongoDB, MySQL, Redis, REST APIs, and microservices.
 In my current role, I work on enterprise, banking, SaaS, and high-volume bill-payment platforms. I have hands-on experience with payment gateway integrations such as PayU and Razorpay, API development and integration, performance optimization, caching, dashboards, and scalable production applications.
 I am particularly interested in opportunities involving React.js/Next.js and Node.js where I can contribute to building scalable and high-performance products.
@@ -36,7 +36,7 @@ GitHub: github.com/satishchaubey`
     badge: 'React / Next.js',
     subject: 'Application for Full Stack Engineer | 3+ Years Experience | React.js, Next.js, Node.js',
     body: `Dear Hiring Team,
-I am writing to express my interest in Full Stack Engineer / Full Stack Developer opportunities at your organization.
+I am writing to express my interest in Full Stack Engineer opportunities at your organization.
 I am a Full Stack Engineer with 3+ years of professional experience working with React.js, Next.js, JavaScript, TypeScript, Node.js, Express.js, MongoDB, MySQL, Redis, REST APIs, and microservices.
 In my current role, I work on enterprise, banking, SaaS, and high-volume bill-payment platforms. I have hands-on experience with payment gateway integrations such as PayU and Razorpay, API development and integration, performance optimization, caching, dashboards, and scalable production applications.
 I am particularly interested in opportunities involving React.js/Next.js and Node.js where I can contribute to building scalable and high-performance products.
@@ -57,7 +57,7 @@ GitHub: github.com/satishchaubey`
     badge: 'LLM / GenAI',
     subject: 'Application for Full Stack Engineer | 3+ Years Experience | React.js, Next.js, Node.js',
     body: `Dear Hiring Team,
-I am writing to express my interest in Full Stack Engineer / Full Stack Developer opportunities at your organization.
+I am writing to express my interest in Full Stack Engineer opportunities at your organization.
 I am a Full Stack Engineer with 3+ years of professional experience working with React.js, Next.js, JavaScript, TypeScript, Node.js, Express.js, MongoDB, MySQL, Redis, REST APIs, and microservices.
 In my current role, I work on enterprise, banking, SaaS, and high-volume bill-payment platforms. I have hands-on experience with payment gateway integrations such as PayU and Razorpay, API development and integration, performance optimization, caching, dashboards, and scalable production applications.
 I am particularly interested in opportunities involving React.js/Next.js and Node.js where I can contribute to building scalable and high-performance products.
@@ -78,7 +78,7 @@ GitHub: github.com/satishchaubey`
     badge: 'Node.js / Express',
     subject: 'Application for Full Stack Engineer | 3+ Years Experience | React.js, Next.js, Node.js',
     body: `Dear Hiring Team,
-I am writing to express my interest in Full Stack Engineer / Full Stack Developer opportunities at your organization.
+I am writing to express my interest in Full Stack Engineer opportunities at your organization.
 I am a Full Stack Engineer with 3+ years of professional experience working with React.js, Next.js, JavaScript, TypeScript, Node.js, Express.js, MongoDB, MySQL, Redis, REST APIs, and microservices.
 In my current role, I work on enterprise, banking, SaaS, and high-volume bill-payment platforms. I have hands-on experience with payment gateway integrations such as PayU and Razorpay, API development and integration, performance optimization, caching, dashboards, and scalable production applications.
 I am particularly interested in opportunities involving React.js/Next.js and Node.js where I can contribute to building scalable and high-performance products.
