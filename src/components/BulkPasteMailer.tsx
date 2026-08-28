@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Mail, CheckCircle2, Loader2, Paperclip, Send, Layers, Trash2, Play } from 'lucide-react';
+import { Mail, CheckCircle2, Loader2, Paperclip, Send, Layers, Trash2, Play, FileText, ExternalLink, Copy } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { getApiBase } from '../config';
 import { ROLE_TEMPLATES, type RoleTemplate } from '../templates';
@@ -145,6 +145,34 @@ export const BulkPasteMailer: React.FC = () => {
     setBatchLogs({});
   };
 
+  // Dynamic Drafts: Open single batch in Gmail Web tabs
+  const handleOpenBatchDrafts = (batchIdx: number) => {
+    const targetEmails = batches[batchIdx];
+    if (!targetEmails || targetEmails.length === 0) return;
+    toast.info(`📝 Opening ${targetEmails.length} Gmail draft tabs for Batch ${batchIdx + 1}...`, { autoClose: 2500 });
+    targetEmails.forEach((email) => {
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyTemplate)}`;
+      window.open(gmailUrl, '_blank');
+    });
+  };
+
+  // Dynamic Drafts: Open all loaded emails in Gmail Web tabs
+  const handleOpenAllDrafts = () => {
+    if (parsedEmails.length === 0) return;
+    toast.info(`📝 Opening ${parsedEmails.length} Gmail draft tabs...`, { autoClose: 3500 });
+    parsedEmails.forEach((email) => {
+      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyTemplate)}`;
+      window.open(gmailUrl, '_blank');
+    });
+  };
+
+  // Dynamic Drafts: Copy Subject & Body to Clipboard
+  const handleCopyDraftToClipboard = () => {
+    const fullText = `Subject: ${subject}\n\n${bodyTemplate}`;
+    navigator.clipboard.writeText(fullText);
+    toast.success("📋 Email Subject & Body template copied to clipboard!", { autoClose: 2500 });
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
       
@@ -155,9 +183,9 @@ export const BulkPasteMailer: React.FC = () => {
             <Layers size={24} />
           </div>
           <div>
-            <h2 className="upload-title" style={{ fontSize: '1.4rem', marginBottom: '0.15rem' }}>Bulk Raw Email Batch Mailer</h2>
+            <h2 className="upload-title" style={{ fontSize: '1.4rem', marginBottom: '0.15rem' }}>Bulk Raw Email Batch Mailer & Drafts</h2>
             <p className="upload-hint" style={{ marginBottom: 0 }}>
-              Paste any block of raw email addresses below. We automatically extract valid emails, organize them into batches of 10, and send your cover letter with your resume attached.
+              Paste any block of raw email addresses below. Extract valid emails into batches of 10, send via SMTP, or open dynamically as auto-saved Gmail Drafts.
             </p>
           </div>
         </div>
@@ -323,6 +351,66 @@ recruiter@techdome.in"
 
       </div>
 
+      {/* Dynamic Gmail Drafts Launcher Section */}
+      <div 
+        className="glass-card" 
+        style={{ 
+          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)', 
+          borderColor: 'rgba(99, 102, 241, 0.25)', 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '1rem' 
+        }}
+      >
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+            <div style={{ padding: '0.5rem', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.15)', color: '#6366f1' }}>
+              <FileText size={22} />
+            </div>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
+                Dynamic Gmail Drafts Launcher Section
+              </h3>
+              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
+                Open pre-filled email compose windows in Gmail web. Gmail auto-saves these directly as Drafts in your inbox.
+              </p>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              className="btn-secondary"
+              onClick={handleCopyDraftToClipboard}
+              style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            >
+              <Copy size={14} />
+              Copy Draft Text
+            </button>
+
+            {batches.length > 0 && (
+              <button
+                type="button"
+                className="btn-primary"
+                onClick={handleOpenAllDrafts}
+                style={{ 
+                  fontSize: '0.8rem', 
+                  padding: '0.45rem 0.85rem', 
+                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', 
+                  borderColor: '#6366f1', 
+                  display: 'flex', 
+                  alignItems: 'center', 
+                  gap: '0.35rem' 
+                }}
+              >
+                <ExternalLink size={14} />
+                Open All {parsedEmails.length} Draft Tabs in Gmail
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
       {/* Batches Preview & Dispatch List */}
       {batches.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -398,37 +486,58 @@ recruiter@techdome.in"
                     </div>
                   )}
 
-                  <button
-                    type="button"
-                    className={isProcessed ? 'btn-secondary' : 'btn-primary'}
-                    onClick={() => handleSendBatch(batchIdx)}
-                    disabled={isSending || isSendingAll}
-                    style={{
-                      padding: '0.5rem',
-                      fontSize: '0.8rem',
-                      justifyContent: 'center',
-                      background: isProcessed ? 'rgba(16, 185, 129, 0.1)' : undefined,
-                      borderColor: isProcessed ? 'rgba(16, 185, 129, 0.3)' : undefined,
-                      color: isProcessed ? '#10b981' : undefined
-                    }}
-                  >
-                    {isSending ? (
-                      <>
-                        <Loader2 size={14} className="animate-spin" />
-                        Sending Batch {batchIdx + 1}...
-                      </>
-                    ) : isProcessed ? (
-                      <>
-                        <CheckCircle2 size={14} />
-                        Resend Batch {batchIdx + 1}
-                      </>
-                    ) : (
-                      <>
-                        <Send size={14} />
-                        Send Batch {batchIdx + 1}
-                      </>
-                    )}
-                  </button>
+                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      onClick={() => handleOpenBatchDrafts(batchIdx)}
+                      title="Open Gmail web compose tabs pre-filled for this batch"
+                      style={{
+                        flex: 1,
+                        padding: '0.5rem',
+                        fontSize: '0.78rem',
+                        justifyContent: 'center',
+                        borderColor: 'rgba(99, 102, 241, 0.3)',
+                        color: '#818cf8'
+                      }}
+                    >
+                      <ExternalLink size={13} />
+                      Draft Tabs
+                    </button>
+
+                    <button
+                      type="button"
+                      className={isProcessed ? 'btn-secondary' : 'btn-primary'}
+                      onClick={() => handleSendBatch(batchIdx)}
+                      disabled={isSending || isSendingAll}
+                      style={{
+                        flex: 1.2,
+                        padding: '0.5rem',
+                        fontSize: '0.78rem',
+                        justifyContent: 'center',
+                        background: isProcessed ? 'rgba(16, 185, 129, 0.1)' : undefined,
+                        borderColor: isProcessed ? 'rgba(16, 185, 129, 0.3)' : undefined,
+                        color: isProcessed ? '#10b981' : undefined
+                      }}
+                    >
+                      {isSending ? (
+                        <>
+                          <Loader2 size={13} className="animate-spin" />
+                          Sending...
+                        </>
+                      ) : isProcessed ? (
+                        <>
+                          <CheckCircle2 size={13} />
+                          Resend
+                        </>
+                      ) : (
+                        <>
+                          <Send size={13} />
+                          SMTP Send
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               );
             })}
