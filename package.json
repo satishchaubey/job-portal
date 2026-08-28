@@ -11,7 +11,6 @@
     "lint": "oxlint",
     "preview": "vite preview"
   },
-
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
@@ -19,6 +18,7 @@
     "nodemailer": "^9.0.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
+    "react-toastify": "^11.1.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
 import { FileSpreadsheet, Sparkles, RefreshCw, Layers, Table, ChevronRight, Send, Building, Zap, Mail, Menu, X } from 'lucide-react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 import { UploadZone } from './components/UploadZone';
 import { StatsDashboard } from './components/StatsDashboard';
 import { TableView } from './components/TableView';
@@ -106,6 +108,12 @@ function App() {
     setHeaders(colHeaders);
     setFileName(name);
     setActiveTab('table'); // Default to table view when data is loaded
+
+    toast.success(`📁 File uploaded successfully! Loaded ${filteredData.length} HR contacts from ${name}`, {
+      position: 'top-right',
+      autoClose: 4500,
+      theme: 'colored'
+    });
   };
 
   const handleReset = () => {
@@ -113,6 +121,7 @@ function App() {
     setHeaders([]);
     setFileName('');
     setSelectedContact(null);
+    toast.info("Upload zone reset. You can load a new sheet now.", { autoClose: 2500 });
   };
 
 
@@ -120,6 +129,7 @@ function App() {
 
   return (
     <div className="container">
+      <ToastContainer position="top-right" autoClose={3500} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover draggable theme="colored" />
       {/* Brand Header & Main Routes Navigation */}
       <header className="app-header">
         <div className="brand-section" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>

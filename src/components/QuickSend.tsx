@@ -1,36 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { Send, CheckCircle2, AlertCircle, Loader2, Paperclip, Mail, User, Building, FileText, Sparkles, Server, Settings, RefreshCw, Wifi, Info } from 'lucide-react';
 import { getApiBase, setApiBase } from '../config';
+import { ROLE_TEMPLATES, type RoleTemplate } from '../templates';
+import { RoleSelector } from './RoleSelector';
 
 interface QuickSendProps {
   onNavigateToCampaign?: () => void;
 }
 
 export const QuickSend: React.FC<QuickSendProps> = () => {
+  const [selectedRole, setSelectedRole] = useState<string>('frontend');
   const [toEmail, setToEmail] = useState('');
   const [recruiterName, setRecruiterName] = useState('Hiring Manager');
   const [companyName, setCompanyName] = useState('');
-  const [subject, setSubject] = useState('Frontend Developer Application - Satish Kumar Chaubey');
-  const [message, setMessage] = useState(
-`Dear Hiring Manager,
-
-I am writing to express my interest in the Frontend Developer position at your organization.
-
-I have 3+ years of experience in frontend development, working extensively with React.js, Next.js, TypeScript, JavaScript, and Redux Toolkit. In my current role at Plutos One, I lead frontend development for SaaS and banking platforms, where I have developed 30+ enterprise application pages and dashboards and worked extensively on REST API integrations, payment gateway integrations, and frontend performance optimization.
-
-I also have hands-on experience with Tailwind CSS, ShadCN UI, MUI, responsive UI development, and working with Node.js/Express backend teams in a microservices environment.
-
-I have attached my updated resume for your consideration. I would appreciate the opportunity to discuss how my experience can contribute to your team.
-
-Looking forward to hearing from you.
-
-Best Regards,
-Satish Kumar Chaubey
-Frontend Engineer
-+91 8299805407
-satishchaubey02@gmail.com
-Ghaziabad, Uttar Pradesh`
-  );
+  const [subject, setSubject] = useState(ROLE_TEMPLATES[0].subject);
+  const [message, setMessage] = useState(ROLE_TEMPLATES[0].body);
 
   const [smtpUser, setSmtpUser] = useState(() => localStorage.getItem('sheetSync_smtpUser') || 'satishchaubey02@gmail.com');
   const [smtpPass, setSmtpPass] = useState(() => localStorage.getItem('sheetSync_smtpPass') || 'gngb uynz nssm mgkz');
@@ -313,6 +297,22 @@ Ghaziabad, Uttar Pradesh`
               />
             </div>
           </div>
+
+          {/* Role Selector Presets */}
+          <RoleSelector 
+            selectedRole={selectedRole}
+            onSelectRole={(tmpl: RoleTemplate) => {
+              setSelectedRole(tmpl.id);
+              let s = tmpl.subject;
+              let b = tmpl.body;
+              if (companyName.trim()) {
+                s = s.replace(/\[Company Name\]/g, companyName.trim());
+                b = b.replace(/\[Company Name\]/g, companyName.trim());
+              }
+              setSubject(s);
+              setMessage(b);
+            }}
+          />
 
           {/* Subject Line */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>

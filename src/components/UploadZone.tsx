@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileSpreadsheet, AlertCircle, Loader2 } from 'lucide-react';
+import { toast } from 'react-toastify';
 import * as XLSX from 'xlsx';
 
 interface UploadZoneProps {
@@ -15,6 +16,7 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onDataLoaded }) => {
   const processFile = (file: File) => {
     setIsLoading(true);
     setError(null);
+    toast.info(`Uploading & parsing "${file.name}"...`, { autoClose: 2000 });
     const reader = new FileReader();
 
     reader.onload = (e) => {
@@ -39,14 +41,18 @@ export const UploadZone: React.FC<UploadZoneProps> = ({ onDataLoaded }) => {
         onDataLoaded(jsonData, headers, file.name);
       } catch (err: any) {
         console.error(err);
-        setError(err.message || "Failed to parse Excel file. Please ensure it is a valid .xlsx, .xls, or .csv file.");
+        const msg = err.message || "Failed to parse Excel file. Please ensure it is a valid .xlsx, .xls, or .csv file.";
+        setError(msg);
+        toast.error(`❌ Upload Failed: ${msg}`, { theme: 'colored' });
       } finally {
         setIsLoading(false);
       }
     };
 
     reader.onerror = () => {
-      setError("File reading error.");
+      const msg = "File reading error.";
+      setError(msg);
+      toast.error(`❌ ${msg}`, { theme: 'colored' });
       setIsLoading(false);
     };
 

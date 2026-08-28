@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from 'react';
 import { Search, MapPin, Mail, Building, Send, CheckCircle2, Loader2, Filter, ExternalLink, Download, Layers, Play } from 'lucide-react';
 import { getApiBase } from '../config';
+import { ROLE_TEMPLATES, type RoleTemplate } from '../templates';
+import { RoleSelector } from './RoleSelector';
 
 interface Company {
   id: string;
@@ -111,25 +113,9 @@ export const FintechDirectory: React.FC = () => {
 
   const [smtpUser] = useState(() => localStorage.getItem('sheetSync_smtpUser') || 'satishchaubey02@gmail.com');
   const [smtpPass] = useState(() => localStorage.getItem('sheetSync_smtpPass') || 'gngb uynz nssm mgkz');
-  const subject = 'Frontend Developer Application - Satish Kumar Chaubey';
-  const emailBody = `Dear Hiring Manager,
-
-I am writing to express my interest in the Frontend Developer position at your organization.
-
-I have 3+ years of experience in frontend development, working extensively with React.js, Next.js, TypeScript, JavaScript, and Redux Toolkit. In my current role at Plutos One, I lead frontend development for SaaS and banking platforms, where I have developed 30+ enterprise application pages and dashboards and worked extensively on REST API integrations, payment gateway integrations, and frontend performance optimization.
-
-I also have hands-on experience with Tailwind CSS, ShadCN UI, MUI, responsive UI development, and working with Node.js/Express backend teams in a microservices environment.
-
-I have attached my updated resume for your consideration. I would appreciate the opportunity to discuss how my experience can contribute to your team.
-
-Looking forward to hearing from you.
-
-Best Regards,
-Satish Kumar Chaubey
-Frontend Engineer
-+91 8299805407
-satishchaubey02@gmail.com
-Ghaziabad, Uttar Pradesh`;
+  const [selectedRole, setSelectedRole] = useState<string>('frontend');
+  const [subject, setSubject] = useState(ROLE_TEMPLATES[0].subject);
+  const [emailBody, setEmailBody] = useState(ROLE_TEMPLATES[0].body);
 
   // Filtered + searched results
   const filteredCompanies = useMemo(() => {
@@ -434,6 +420,18 @@ Ghaziabad, Uttar Pradesh`;
       {/* Batch Dispatch Panel */}
       {batches.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          
+          <div className="glass-card">
+            <RoleSelector 
+              selectedRole={selectedRole}
+              onSelectRole={(tmpl: RoleTemplate) => {
+                setSelectedRole(tmpl.id);
+                setSubject(tmpl.subject);
+                setEmailBody(tmpl.body);
+              }}
+            />
+          </div>
+
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
             <div>
               <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.2rem' }}>

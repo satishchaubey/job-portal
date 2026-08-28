@@ -1,30 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Mail, CheckCircle2, Loader2, Paperclip, Send, Layers, Trash2, Play } from 'lucide-react';
+import { toast } from 'react-toastify';
 import { getApiBase } from '../config';
+import { ROLE_TEMPLATES, type RoleTemplate } from '../templates';
+import { RoleSelector } from './RoleSelector';
 
 export const BulkPasteMailer: React.FC = () => {
+  const [selectedRole, setSelectedRole] = useState<string>('frontend');
   const [rawText, setRawText] = useState('');
-  const [subject, setSubject] = useState('Frontend Developer Application - Satish Kumar Chaubey');
-  const [bodyTemplate, setBodyTemplate] = useState(
-`Dear Hiring Manager,
-
-I am writing to express my interest in the Frontend Developer position at your organization.
-
-I have 3+ years of experience in frontend development, working extensively with React.js, Next.js, TypeScript, JavaScript, and Redux Toolkit. In my current role at Plutos One, I lead frontend development for SaaS and banking platforms, where I have developed 30+ enterprise application pages and dashboards and worked extensively on REST API integrations, payment gateway integrations, and frontend performance optimization.
-
-I also have hands-on experience with Tailwind CSS, ShadCN UI, MUI, responsive UI development, and working with Node.js/Express backend teams in a microservices environment.
-
-I have attached my updated resume for your consideration. I would appreciate the opportunity to discuss how my experience can contribute to your team.
-
-Looking forward to hearing from you.
-
-Best Regards,
-Satish Kumar Chaubey
-Frontend Engineer
-+91 8299805407
-satishchaubey02@gmail.com
-Ghaziabad, Uttar Pradesh`
-  );
+  const [subject, setSubject] = useState(ROLE_TEMPLATES[0].subject);
+  const [bodyTemplate, setBodyTemplate] = useState(ROLE_TEMPLATES[0].body);
 
   const [smtpUser, setSmtpUser] = useState(() => localStorage.getItem('sheetSync_smtpUser') || 'satishchaubey02@gmail.com');
   const [smtpPass, setSmtpPass] = useState(() => localStorage.getItem('sheetSync_smtpPass') || 'gngb uynz nssm mgkz');
@@ -66,6 +51,19 @@ Ghaziabad, Uttar Pradesh`
     return result;
   }, [parsedEmails]);
 
+  // Toast when emails are pasted/extracted
+  const [lastNotifiedCount, setLastNotifiedCount] = useState(0);
+  useEffect(() => {
+    if (parsedEmails.length > 0 && parsedEmails.length !== lastNotifiedCount) {
+      setLastNotifiedCount(parsedEmails.length);
+      toast.success(`📋 Loaded ${parsedEmails.length} email addresses into ${batches.length} bulk batches!`, {
+        position: 'top-right',
+        autoClose: 3500,
+        theme: 'colored'
+      });
+    }
+  }, [parsedEmails.length, batches.length, lastNotifiedCount]);
+
   // Send a specific batch index
   const handleSendBatch = async (batchIdx: number) => {
     const targetEmails = batches[batchIdx];
@@ -73,6 +71,7 @@ Ghaziabad, Uttar Pradesh`
 
     setSendingBatchIndex(batchIdx);
     setBatchLogs(prev => ({ ...prev, [batchIdx]: `Sending batch to ${targetEmails.length} recipients...` }));
+    toast.info(`🚀 Starting batch ${batchIdx + 1} send (${targetEmails.length} recipients)...`, { autoClose: 2500 });
 
     // Save SMTP credentials
     localStorage.setItem('sheetSync_smtpUser', smtpUser);
@@ -112,9 +111,16 @@ Ghaziabad, Uttar Pradesh`
         ...prev, 
         [batchIdx]: `✅ Sent ${successCount} emails successfully! ${failCount > 0 ? `(${failCount} failed)` : ''}` 
       }));
+
+      if (successCount > 0) {
+        toast.success(`✅ Batch ${batchIdx + 1} completed! ${successCount} sent, ${failCount} failed.`, { theme: 'colored' });
+      } else {
+        toast.error(`❌ Batch ${batchIdx + 1} failed for all recipients.`, { theme: 'colored' });
+      }
     } catch (err: any) {
       console.error(err);
       setBatchLogs(prev => ({ ...prev, [batchIdx]: `❌ Batch failed: ${err.message}` }));
+      toast.error(`❌ Batch ${batchIdx + 1} error: ${err.message}`, { theme: 'colored' });
     } finally {
       setSendingBatchIndex(null);
     }
@@ -123,12 +129,14 @@ Ghaziabad, Uttar Pradesh`
   // Send all batches sequentially
   const handleSendAllBatches = async () => {
     setIsSendingAll(true);
+    toast.info(`🚀 Processing all ${batches.length} bulk batches...`, { autoClose: 3000 });
     for (let i = 0; i < batches.length; i++) {
       if (!processedBatches[i]) {
         await handleSendBatch(i);
       }
     }
     setIsSendingAll(false);
+    toast.success(`🎉 All bulk batches processing completed!`, { theme: 'colored', autoClose: 5000 });
   };
 
   const handleClear = () => {
@@ -209,6 +217,16 @@ recruiter@techdome.in"
 
         {/* Email Subject & Message Customizer */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: '1px solid rgba(75, 85, 99, 0.15)', paddingTop: '1rem' }}>
+          
+          <RoleSelector 
+            selectedRole={selectedRole}
+            onSelectRole={(tmpl: RoleTemplate) => {
+              setSelectedRole(tmpl.id);
+              setSubject(tmpl.subject);
+              setBodyTemplate(tmpl.body);
+            }}
+          />
+
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             <label className="modal-label">Email Subject</label>
             <input
