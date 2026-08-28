@@ -43,12 +43,19 @@ const PLATFORMS = [
 ];
 
 const COVER_LETTER = `Dear Hiring Team,
+
 I am writing to express my interest in Full Stack Engineer opportunities at your organization.
+
 I am a Full Stack Engineer with 3+ years of professional experience working with React.js, Next.js, JavaScript, TypeScript, Node.js, Express.js, MongoDB, MySQL, Redis, REST APIs, and microservices.
+
 In my current role, I work on enterprise, banking, SaaS, and high-volume bill-payment platforms. I have hands-on experience with payment gateway integrations such as PayU and Razorpay, API development and integration, performance optimization, caching, dashboards, and scalable production applications.
+
 I am particularly interested in opportunities involving React.js/Next.js and Node.js where I can contribute to building scalable and high-performance products.
+
 Please find my resume attached for your consideration. I would appreciate the opportunity to discuss any relevant current or upcoming openings matching my profile.
+
 Thank you for your time and consideration.
+
 Best regards,
 Satish Kumar Chaubey
 Full Stack Engineer | MERN
