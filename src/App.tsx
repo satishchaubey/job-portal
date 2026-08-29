@@ -27,14 +27,14 @@ function App() {
     const urlParams = new URLSearchParams(window.location.search);
     const pParam = urlParams.get('p');
     if (pParam) {
-      const cleanP = decodeURIComponent(pParam);
+      const cleanP = decodeURIComponent(pParam).replace(/\/+/g, '/');
       const repoBase = window.location.pathname.startsWith('/job-portal') ? '/job-portal' : '';
       const cleanUrl = `${repoBase}${cleanP.startsWith('/') ? '' : '/'}${cleanP}`;
       window.history.replaceState(null, '', cleanUrl);
       return cleanP.startsWith('/') ? cleanP : `/${cleanP}`;
     }
 
-    // 2. Check hash route e.g. #/gmail-drafts or #/gmail-sent
+    // 2. Check hash route e.g. #/gmail-drafts, #/direct-send, #/resume
     if (window.location.hash) {
       const hashRoute = window.location.hash.replace(/^#\/?/, '/');
       if (hashRoute) return hashRoute.startsWith('/') ? hashRoute : `/${hashRoute}`;
@@ -66,8 +66,10 @@ function App() {
   const navigate = (targetPath: string) => {
     const repoBase = window.location.pathname.startsWith('/job-portal') ? '/job-portal' : '';
     const formattedPath = targetPath.startsWith('/') ? targetPath : `/${targetPath}`;
+    
+    // Update hash for instant 100% fail-proof GitHub Pages reload compatibility
+    window.location.hash = `#${formattedPath}`;
     const fullUrl = `${repoBase}${formattedPath === '/' ? '/' : formattedPath}`;
-
     window.history.pushState({}, '', fullUrl);
     setRoute(formattedPath);
     setMobileMenuOpen(false);

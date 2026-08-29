@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>SheetSync Lead & Bulk Mailer Suite</title>
+    <script type="text/javascript">
+      // GitHub Pages SPA Redirect Script
+      // Converts subpaths like /job-portal/direct-send into /job-portal/?p=/direct-send
+      (function() {
+        var pathSegmentsToKeep = 1; // '/job-portal'
+        var l = window.location;
+        var pathArray = l.pathname.split('/');
+        var repoBase = pathArray.slice(0, 1 + pathSegmentsToKeep).join('/');
+        var routePath = pathArray.slice(1 + pathSegmentsToKeep).join('/') + l.search + l.hash;
+        
+        var targetUrl = repoBase + '/?p=' + encodeURIComponent('/' + routePath);
+        l.replace(targetUrl);
+      })();
+    </script>
+  </head>
+  <body style="background: #0f172a; color: #ffffff; font-family: system-ui, sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; margin: 0;">
+    <div style="text-align: center;">
+      <h2 style="margin-bottom: 0.5rem;">Redirecting to SheetSync...</h2>
+      <p style="color: #94a3b8; font-size: 0.9rem;">Please wait a moment while we load your page.</p>
+    </div>
+  </body>
+</html>
