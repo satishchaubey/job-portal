@@ -349,6 +349,46 @@ Each object must have:
   }
 });
 
+// Helper to create cloud-safe nodemailer transporter with automatic port fallback (587 -> 465)
+const createCloudTransporter = async (user, pass) => {
+  const cleanUser = user.trim();
+  const cleanPass = pass.trim();
+
+  // Primary: Port 587 (STARTTLS - recommended for cloud hosts like Render)
+  const primaryTransporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 587,
+    secure: false,
+    auth: { user: cleanUser, pass: cleanPass },
+    tls: { rejectUnauthorized: false },
+    connectionTimeout: 8000,
+    greetingTimeout: 5000,
+    socketTimeout: 10000
+  });
+
+  try {
+    await primaryTransporter.verify();
+    return primaryTransporter;
+  } catch (err1) {
+    console.warn('Port 587 verification failed, trying fallback Port 465:', err1.message);
+    
+    // Fallback: Port 465 (Implicit SSL)
+    const fallbackTransporter = nodemailer.createTransport({
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true,
+      auth: { user: cleanUser, pass: cleanPass },
+      tls: { rejectUnauthorized: false },
+      connectionTimeout: 8000,
+      greetingTimeout: 5000,
+      socketTimeout: 10000
+    });
+
+    await fallbackTransporter.verify();
+    return fallbackTransporter;
+  }
+};
+
 // Endpoint to send a single email with PDF attachment
 app.post('/api/send-email', async (req, res) => {
   const { smtpUser, smtpPass, to, subject, body } = req.body;
@@ -360,44 +400,36 @@ app.post('/api/send-email', async (req, res) => {
     });
   }
 
-  // Setup transporter
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // true for port 465, false for other ports
-    auth: {
-      user: smtpUser,
-      pass: smtpPass,
-    },
-  });
-
-  // Verify connection configuration
+  let transporter;
   try {
-    // Note: verifying on every request is simple for local development
-    await transporter.verify();
+    transporter = await createCloudTransporter(smtpUser, smtpPass);
   } catch (error) {
-    console.error('SMTP Connection Verification Failed:', error);
+    console.error('SMTP Connection Verification Failed:', error.message);
     return res.status(401).json({ 
       success: false, 
-      message: 'SMTP Login failed. Please check your Gmail address and App Password.' 
+      message: `SMTP Login failed: ${error.message}. Please check your Gmail address and App Password.` 
     });
   }
 
-  // Define attachment path
+  // Define attachment path & check if file exists
+  const attachments = [];
   const resumePath = path.join(__dirname, 'public', 'Satish_Kumar_Chaubey.pdf');
+  if (fs.existsSync(resumePath)) {
+    attachments.push({
+      filename: 'Satish_Kumar_Chaubey.pdf',
+      path: resumePath
+    });
+  } else {
+    console.warn('Resume file not found at:', resumePath);
+  }
 
   // Mail options
   const mailOptions = {
-    from: `"Satish Kumar Chaubey" <${smtpUser}>`,
-    to: to,
+    from: `"Satish Kumar Chaubey" <${smtpUser.trim()}>`,
+    to: to.trim(),
     subject: subject,
     text: body,
-    attachments: [
-      {
-        filename: 'Satish_Kumar_Chaubey.pdf',
-        path: resumePath
-      }
-    ]
+    attachments
   };
 
   try {
