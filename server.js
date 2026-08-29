@@ -3,9 +3,19 @@ import cors from 'cors';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import fs from 'fs';
+import dns from 'dns';
 import { fileURLToPath } from 'url';
 import Imap from 'imap';
 import { simpleParser } from 'mailparser';
+
+// Custom DNS lookup that explicitly forces IPv4 address resolution (bypassing cloud IPv6 ENETUNREACH on Render)
+const ipv4Lookup = (hostname, options, callback) => {
+  if (typeof options === 'function') {
+    callback = options;
+    options = {};
+  }
+  return dns.lookup(hostname, { family: 4 }, callback);
+};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -354,12 +364,12 @@ const createCloudTransporter = async (user, pass) => {
   const cleanUser = user.trim();
   const cleanPass = pass.replace(/\s+/g, '');
 
-  // Primary: Port 587 with IPv4 forced (STARTTLS - recommended for cloud hosts like Render)
+  // Primary: Port 587 with IPv4 DNS forced (STARTTLS - recommended for cloud hosts like Render)
   const primaryTransporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
     secure: false,
-    family: 4, // FORCE IPv4 to eliminate 30-second cloud IPv6 TCP connection timeouts
+    lookup: ipv4Lookup, // FORCE IPv4 DNS LOOKUP to bypass cloud IPv6 ENETUNREACH
     auth: { user: cleanUser, pass: cleanPass },
     tls: { rejectUnauthorized: false },
     connectionTimeout: 10000,
@@ -373,12 +383,12 @@ const createCloudTransporter = async (user, pass) => {
   } catch (err1) {
     console.warn('Port 587 IPv4 failed, trying fallback Port 465:', err1.message);
     
-    // Fallback: Port 465 (Implicit SSL) with IPv4 forced
+    // Fallback: Port 465 (Implicit SSL) with IPv4 DNS forced
     const fallbackTransporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
-      family: 4, // FORCE IPv4
+      lookup: ipv4Lookup, // FORCE IPv4 DNS LOOKUP
       auth: { user: cleanUser, pass: cleanPass },
       tls: { rejectUnauthorized: false },
       connectionTimeout: 10000,
