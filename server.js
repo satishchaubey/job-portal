@@ -524,9 +524,21 @@ app.post('/api/send-email', async (req, res) => {
     });
   } catch (fallbackErr) {
     console.error('[Resend Fallback Engine] Error:', fallbackErr.message);
+    const gmailDraftUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to.trim())}&su=${encodeURIComponent(subject.trim())}&body=${encodeURIComponent(body.trim())}`;
+    
+    if (fallbackErr.message.includes('only send testing emails') || fallbackErr.message.includes('resend.com/domains')) {
+      return res.status(400).json({
+        success: false,
+        message: `Resend Free Key Limitation: Resend free account allows sending API emails to your owner email (satishchaubey02@gmail.com). To send to external recruiters like ${to}, please run your Local Backend (npm run dev) or click 'Open in Gmail Web Draft'!`,
+        gmailDraftUrl,
+        isResendRestricted: true
+      });
+    }
+
     return res.status(500).json({
       success: false,
-      message: `Email delivery failed: ${fallbackErr.message}`
+      message: `Email delivery failed: ${fallbackErr.message}`,
+      gmailDraftUrl
     });
   }
 });
