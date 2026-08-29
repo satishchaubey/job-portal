@@ -1,12 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Mail, CheckCircle2, Loader2, Paperclip, Send, Layers, Trash2, Play, FileText, ExternalLink, Copy, RefreshCw } from 'lucide-react';
+import { Mail, CheckCircle2, Loader2, Paperclip, Send, Layers, Trash2, Play, ExternalLink, RefreshCw } from 'lucide-react';
 import { toast } from '../toast';
 import { getApiBase } from '../config';
-import { ROLE_TEMPLATES, FRESH_TEMPLATE, FOLLOWUP_TEMPLATE, type RoleTemplate } from '../templates';
-import { RoleSelector } from './RoleSelector';
+import { FRESH_TEMPLATE, FOLLOWUP_TEMPLATE } from '../templates';
 
 export const BulkPasteMailer: React.FC = () => {
-  const [selectedRole, setSelectedRole] = useState<string>('frontend');
   const [campaignType, setCampaignType] = useState<'fresh' | 'followup'>(() => {
     const saved = localStorage.getItem('sheetSync_campaignType');
     return saved === 'followup' ? 'followup' : 'fresh';

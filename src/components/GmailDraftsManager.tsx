@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Mail, RefreshCw, Send, Loader2, FileText, Calendar, User, Search, ExternalLink, CheckCircle2, Copy, CheckSquare, Square, Share2, Trash2, Clock, CalendarDays, Inbox } from 'lucide-react';
+import { Mail, RefreshCw, Send, Loader2, FileText, Calendar, User, Search, ExternalLink, CheckCircle2, Copy, CheckSquare, Square, Trash2, Clock, CalendarDays } from 'lucide-react';
 import { toast } from '../toast';
 import { getApiBase } from '../config';
 

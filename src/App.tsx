@@ -443,17 +443,17 @@ function App() {
               </div>
 
               {/* Dashboard stats */}
-              <StatsDashboard data={sheetData} headers={headers} />
+              <StatsDashboard data={sheetData} />
 
               {/* View Content */}
               {activeTab === 'table' ? (
                 <TableView 
                   data={sheetData} 
                   headers={headers} 
-                  onSelectContact={(contact) => setSelectedContact(contact)} 
+                  onRowClick={(contact: any) => setSelectedContact(contact)} 
                 />
               ) : (
-                <BatchMailer data={sheetData} headers={headers} />
+                <BatchMailer data={sheetData} />
               )}
             </div>
           )}
