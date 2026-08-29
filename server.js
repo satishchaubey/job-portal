@@ -352,36 +352,38 @@ Each object must have:
 // Helper to create cloud-safe nodemailer transporter with automatic port fallback (587 -> 465)
 const createCloudTransporter = async (user, pass) => {
   const cleanUser = user.trim();
-  const cleanPass = pass.trim();
+  const cleanPass = pass.replace(/\s+/g, '');
 
-  // Primary: Port 587 (STARTTLS - recommended for cloud hosts like Render)
+  // Primary: Port 587 with IPv4 forced (STARTTLS - recommended for cloud hosts like Render)
   const primaryTransporter = nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 587,
     secure: false,
+    family: 4, // FORCE IPv4 to eliminate 30-second cloud IPv6 TCP connection timeouts
     auth: { user: cleanUser, pass: cleanPass },
     tls: { rejectUnauthorized: false },
-    connectionTimeout: 8000,
+    connectionTimeout: 10000,
     greetingTimeout: 5000,
-    socketTimeout: 10000
+    socketTimeout: 15000
   });
 
   try {
     await primaryTransporter.verify();
     return primaryTransporter;
   } catch (err1) {
-    console.warn('Port 587 verification failed, trying fallback Port 465:', err1.message);
+    console.warn('Port 587 IPv4 failed, trying fallback Port 465:', err1.message);
     
-    // Fallback: Port 465 (Implicit SSL)
+    // Fallback: Port 465 (Implicit SSL) with IPv4 forced
     const fallbackTransporter = nodemailer.createTransport({
       host: 'smtp.gmail.com',
       port: 465,
       secure: true,
+      family: 4, // FORCE IPv4
       auth: { user: cleanUser, pass: cleanPass },
       tls: { rejectUnauthorized: false },
-      connectionTimeout: 8000,
+      connectionTimeout: 10000,
       greetingTimeout: 5000,
-      socketTimeout: 10000
+      socketTimeout: 15000
     });
 
     await fallbackTransporter.verify();
