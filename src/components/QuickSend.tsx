@@ -3,6 +3,7 @@ import { Send, CheckCircle2, AlertCircle, Loader2, Paperclip, Mail, User, Buildi
 import { getApiBase, setApiBase } from '../config';
 import { ROLE_TEMPLATES, type RoleTemplate } from '../templates';
 import { RoleSelector } from './RoleSelector';
+import { ResumeUploader } from './ResumeUploader';
 
 interface QuickSendProps {
   onNavigateToCampaign?: () => void;
@@ -244,6 +245,9 @@ export const QuickSend: React.FC<QuickSendProps> = () => {
           </div>
         )}
       </div>
+
+      {/* Resume Attachment & Upload Manager */}
+      <ResumeUploader />
 
       {/* Main Mailer Form */}
       <div className="glass-card">

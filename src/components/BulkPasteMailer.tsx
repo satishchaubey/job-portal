@@ -3,6 +3,7 @@ import { Mail, CheckCircle2, Loader2, Paperclip, Send, Layers, Trash2, Play, Ext
 import { toast } from '../toast';
 import { getApiBase } from '../config';
 import { FRESH_TEMPLATE, FOLLOWUP_TEMPLATE } from '../templates';
+import { ResumeUploader } from './ResumeUploader';
 
 export const BulkPasteMailer: React.FC = () => {
   const [campaignType, setCampaignType] = useState<'fresh' | 'followup'>(() => {
@@ -213,6 +214,9 @@ export const BulkPasteMailer: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Active Resume Attachment Bar */}
+      <ResumeUploader compact />
 
       {/* Campaign Mode Switcher (Fresh vs Follow-Up) */}
       <div className="glass-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', background: campaignType === 'followup' ? 'rgba(245, 158, 11, 0.05)' : 'var(--bg-card)', borderColor: campaignType === 'followup' ? 'rgba(245, 158, 11, 0.3)' : 'var(--border-color)' }}>

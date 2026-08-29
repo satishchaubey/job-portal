@@ -9,6 +9,7 @@ import { BatchMailer } from './components/BatchMailer';
 import { QuickSend } from './components/QuickSend';
 import { BulkPasteMailer } from './components/BulkPasteMailer';
 import { GmailDraftsManager } from './components/GmailDraftsManager';
+import { ResumeUploader } from './components/ResumeUploader';
 
 function App() {
   const [sheetData, setSheetData] = useState<any[] | null>(null);
@@ -212,6 +213,16 @@ function App() {
             <Clock size={14} style={{ marginRight: '0.25rem' }} />
             Previous Sent Mails
           </button>
+
+          <button
+            type="button"
+            className={cleanRoute === '/resume' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => navigate('/resume')}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: cleanRoute === '/resume' ? undefined : 'transparent' }}
+          >
+            <FileText size={14} style={{ marginRight: '0.25rem' }} />
+            Resume Manager
+          </button>
         </nav>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', opacity: 0.8 }} className="desktop-only">
@@ -306,7 +317,16 @@ function App() {
       )}
 
       {/* Route Switcher Render */}
-      {cleanRoute === '/gmail-sent' ? (
+      {cleanRoute === '/resume' ? (
+        <div style={{ animation: 'fadeIn 0.3s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>Home</span>
+            <ChevronRight size={12} />
+            <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>Resume Attachment Manager</span>
+          </div>
+          <ResumeUploader />
+        </div>
+      ) : cleanRoute === '/gmail-sent' ? (
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>Home</span>

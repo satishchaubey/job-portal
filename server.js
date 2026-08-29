@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import nodemailer from 'nodemailer';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import Imap from 'imap';
 import { simpleParser } from 'mailparser';
@@ -12,6 +13,9 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Serve public directory statically so resumes can be previewed/downloaded
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Allow requests from local dev, mobile browsers, and deployed frontends
 app.use(cors({
   origin: true,
@@ -19,10 +23,72 @@ app.use(cors({
   methods: ['GET', 'POST', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
 }));
-app.use(express.json());
+app.use(express.json({ limit: '25mb' }));
+app.use(express.urlencoded({ limit: '25mb', extended: true }));
 
 // Health check for Render
 app.get('/api/health', (_req, res) => res.json({ status: 'ok' }));
+
+// ─────────────────────────────────────────────────────────────
+// RESUME MANAGEMENT: Fetch active resume info & upload updated PDF
+// ─────────────────────────────────────────────────────────────
+app.get('/api/resume-info', (_req, res) => {
+  const resumePath = path.join(__dirname, 'public', 'Satish_Kumar_Chaubey.pdf');
+  if (fs.existsSync(resumePath)) {
+    const stats = fs.statSync(resumePath);
+    return res.json({
+      success: true,
+      exists: true,
+      fileName: 'Satish_Kumar_Chaubey.pdf',
+      sizeBytes: stats.size,
+      updatedAt: stats.mtime.toISOString(),
+      url: '/Satish_Kumar_Chaubey.pdf'
+    });
+  }
+  return res.json({ success: true, exists: false, message: 'No active resume found.' });
+});
+
+app.post('/api/upload-resume', (req, res) => {
+  const { pdfBase64, originalName } = req.body;
+
+  if (!pdfBase64) {
+    return res.status(400).json({ success: false, message: 'Missing pdfBase64 data in request body.' });
+  }
+
+  try {
+    const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, '').replace(/^data:application\/octet-stream;base64,/, '');
+    const buffer = Buffer.from(cleanBase64, 'base64');
+
+    const publicDir = path.join(__dirname, 'public');
+    if (!fs.existsSync(publicDir)) {
+      fs.mkdirSync(publicDir, { recursive: true });
+    }
+
+    const resumePath = path.join(publicDir, 'Satish_Kumar_Chaubey.pdf');
+    
+    // Remove existing resume if present and overwrite automatically
+    if (fs.existsSync(resumePath)) {
+      fs.unlinkSync(resumePath);
+    }
+
+    fs.writeFileSync(resumePath, buffer);
+    const stats = fs.statSync(resumePath);
+
+    console.log(`Resume updated: ${originalName || 'Satish_Kumar_Chaubey.pdf'} (${stats.size} bytes) -> public/Satish_Kumar_Chaubey.pdf`);
+
+    return res.json({
+      success: true,
+      message: 'Resume updated successfully! Overwritten public/Satish_Kumar_Chaubey.pdf',
+      fileName: 'Satish_Kumar_Chaubey.pdf',
+      originalName: originalName || 'Satish_Kumar_Chaubey.pdf',
+      sizeBytes: stats.size,
+      updatedAt: stats.mtime.toISOString()
+    });
+  } catch (err) {
+    console.error('Error saving updated resume:', err);
+    return res.status(500).json({ success: false, message: `Failed to save resume: ${err.message}` });
+  }
+});
 
 // ─────────────────────────────────────────────────────────────
 // AI HUNT: Search job postings on ATS platforms via Exa.ai
