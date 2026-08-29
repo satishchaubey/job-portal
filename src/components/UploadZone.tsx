@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileSpreadsheet, AlertCircle, Loader2 } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { toast } from '../toast';
 import * as XLSX from 'xlsx';
 
 interface UploadZoneProps {

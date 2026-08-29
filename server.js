@@ -3,6 +3,8 @@ import cors from 'cors';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import Imap from 'imap';
+import { simpleParser } from 'mailparser';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -345,9 +347,125 @@ app.post('/api/send-email', async (req, res) => {
     console.error('Email Sending Failed:', error);
     return res.status(500).json({ 
       success: false, 
-      message: error.message || 'Failed to send email due to an internal mailer error.' 
+      message: error.message 
     });
   }
+});
+
+// Endpoint to fetch saved drafts or sent mails directly from Gmail via IMAP
+app.post('/api/fetch-drafts', (req, res) => {
+  const { smtpUser, smtpPass, folderType } = req.body;
+
+  if (!smtpUser || !smtpPass) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Missing required credentials (smtpUser and smtpPass).' 
+    });
+  }
+
+  const imap = new Imap({
+    user: smtpUser.trim(),
+    password: smtpPass.trim(),
+    host: 'imap.gmail.com',
+    port: 993,
+    tls: true,
+    tlsOptions: { rejectUnauthorized: false }
+  });
+
+  imap.once('error', (err) => {
+    console.error('IMAP Error:', err);
+    if (!res.headersSent) {
+      res.status(500).json({
+        success: false,
+        message: `Gmail IMAP connection failed: ${err.message}`
+      });
+    }
+  });
+
+  const processBox = (box) => {
+    if (!box || box.messages.total === 0) {
+      imap.end();
+      return res.json({ success: true, drafts: [], count: 0 });
+    }
+
+    // Fetch all messages in the folder (up to 1000) to include all previous days history
+    const fetchCount = Math.min(1000, box.messages.total);
+    const startSeq = Math.max(1, box.messages.total - fetchCount + 1);
+    const fetch = imap.seq.fetch(`${startSeq}:${box.messages.total}`, { 
+      bodies: 'HEADER.FIELDS (TO FROM SUBJECT DATE)' 
+    });
+    const draftsList = [];
+
+    fetch.on('message', (msg, seqno) => {
+      msg.on('body', (stream) => {
+        let buffer = '';
+        stream.on('data', chunk => buffer += chunk.toString('utf8'));
+        stream.on('end', () => {
+          try {
+            const parsed = Imap.parseHeader(buffer);
+            const rawTo = parsed.to ? (Array.isArray(parsed.to) ? parsed.to.join(', ') : String(parsed.to)) : '';
+            const rawSubject = parsed.subject ? (Array.isArray(parsed.subject) ? parsed.subject.join(' ') : String(parsed.subject)) : '';
+            const rawDate = parsed.date ? (Array.isArray(parsed.date) ? parsed.date[0] : String(parsed.date)) : new Date().toISOString();
+
+            draftsList.push({
+              id: seqno,
+              to: rawTo || '(no recipient)',
+              subject: rawSubject || '(no subject)',
+              body: `Recipient email: ${rawTo}`,
+              date: new Date(rawDate).toISOString()
+            });
+          } catch (e) {
+            console.error('Header parse error:', e.message);
+          }
+        });
+      });
+    });
+
+    fetch.once('end', () => {
+      setTimeout(() => {
+        imap.end();
+        draftsList.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+        console.log(`Fetched ${draftsList.length} mails from Gmail IMAP folder (${folderType || 'drafts'}).`);
+        return res.json({
+          success: true,
+          count: draftsList.length,
+          drafts: draftsList
+        });
+      }, 500);
+    });
+  };
+
+  imap.once('ready', () => {
+    const candidateFolders = (folderType === 'sent')
+      ? ['[Gmail]/Sent Mail', '[Gmail]/Sent', 'Sent Mail', 'Sent', 'Sent Items']
+      : ['[Gmail]/Drafts', 'Drafts', '[Gmail]/Draft'];
+
+    let folderIdx = 0;
+    const tryNextFolder = () => {
+      if (folderIdx >= candidateFolders.length) {
+        imap.end();
+        return res.status(500).json({
+          success: false,
+          message: `Could not open any Gmail folder for ${folderType || 'drafts'}. Tried: ${candidateFolders.join(', ')}`
+        });
+      }
+
+      const folderName = candidateFolders[folderIdx++];
+      imap.openBox(folderName, true, (err, box) => {
+        if (err) {
+          console.warn(`Could not open ${folderName}, trying next candidate...`);
+          tryNextFolder();
+        } else {
+          console.log(`Successfully opened Gmail IMAP folder: "${folderName}" (${box.messages.total} messages).`);
+          processBox(box);
+        }
+      });
+    };
+
+    tryNextFolder();
+  });
+
+  imap.connect();
 });
 
 // Endpoint to search jobs using Adzuna, LinkedIn API, or JSearch

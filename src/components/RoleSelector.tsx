@@ -1,6 +1,6 @@
 import React from 'react';
 import { ROLE_TEMPLATES, type RoleTemplate } from '../templates';
-import { toast } from 'react-toastify';
+import { toast } from '../toast';
 import { Briefcase } from 'lucide-react';
 
 interface RoleSelectorProps {

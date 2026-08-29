@@ -4,7 +4,9 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -k -n \"FRONTEND,BACKEND\" -c \"cyan,yellow\" \"vite\" \"node --watch server.js\"",
+    "dev:frontend": "vite",
+    "dev:backend": "node server.js",
     "server": "node server.js",
     "start": "node server.js",
     "build": "tsc -b && vite build",
@@ -14,7 +16,9 @@
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "imap": "^0.8.19",
     "lucide-react": "^1.32.0",
+    "mailparser": "^3.9.17",
     "nodemailer": "^9.0.5",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
@@ -24,11 +28,14 @@
   "devDependencies": {
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/imap": "^0.8.43",
+    "@types/mailparser": "^3.4.6",
     "@types/node": "^24.13.3",
     "@types/nodemailer": "^8.0.1",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.4",
+    "concurrently": "^10.0.5",
     "oxlint": "^1.75.0",
     "typescript": "~6.0.2",
     "vite": "^8.2.0"

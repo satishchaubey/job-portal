@@ -1,15 +1,20 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Mail, CheckCircle2, Loader2, Paperclip, Send, Layers, Trash2, Play, FileText, ExternalLink, Copy } from 'lucide-react';
-import { toast } from 'react-toastify';
+import { Mail, CheckCircle2, Loader2, Paperclip, Send, Layers, Trash2, Play, FileText, ExternalLink, Copy, RefreshCw } from 'lucide-react';
+import { toast } from '../toast';
 import { getApiBase } from '../config';
-import { ROLE_TEMPLATES, type RoleTemplate } from '../templates';
+import { ROLE_TEMPLATES, FRESH_TEMPLATE, FOLLOWUP_TEMPLATE, type RoleTemplate } from '../templates';
 import { RoleSelector } from './RoleSelector';
 
 export const BulkPasteMailer: React.FC = () => {
   const [selectedRole, setSelectedRole] = useState<string>('frontend');
-  const [rawText, setRawText] = useState('');
-  const [subject, setSubject] = useState(ROLE_TEMPLATES[0].subject);
-  const [bodyTemplate, setBodyTemplate] = useState(ROLE_TEMPLATES[0].body);
+  const [campaignType, setCampaignType] = useState<'fresh' | 'followup'>(() => {
+    const saved = localStorage.getItem('sheetSync_campaignType');
+    return saved === 'followup' ? 'followup' : 'fresh';
+  });
+
+  const [rawText, setRawText] = useState(() => localStorage.getItem('sheetSync_bulkPastedEmails') || '');
+  const [subject, setSubject] = useState(() => campaignType === 'followup' ? FOLLOWUP_TEMPLATE.subject : FRESH_TEMPLATE.subject);
+  const [bodyTemplate, setBodyTemplate] = useState(() => campaignType === 'followup' ? FOLLOWUP_TEMPLATE.body : FRESH_TEMPLATE.body);
 
   const [smtpUser, setSmtpUser] = useState(() => localStorage.getItem('sheetSync_smtpUser') || 'satishchaubey02@gmail.com');
   const [smtpPass, setSmtpPass] = useState(() => localStorage.getItem('sheetSync_smtpPass') || 'gngb uynz nssm mgkz');
@@ -18,6 +23,34 @@ export const BulkPasteMailer: React.FC = () => {
   const [sendingBatchIndex, setSendingBatchIndex] = useState<number | null>(null);
   const [isSendingAll, setIsSendingAll] = useState(false);
   const [batchLogs, setBatchLogs] = useState<Record<number, string>>({});
+
+  // Sync with campaignType saved in localStorage (e.g. set by GmailDraftsManager export)
+  useEffect(() => {
+    const saved = localStorage.getItem('sheetSync_campaignType');
+    if (saved === 'followup') {
+      setCampaignType('followup');
+      setSubject(FOLLOWUP_TEMPLATE.subject);
+      setBodyTemplate(FOLLOWUP_TEMPLATE.body);
+    } else if (saved === 'fresh') {
+      setCampaignType('fresh');
+      setSubject(FRESH_TEMPLATE.subject);
+      setBodyTemplate(FRESH_TEMPLATE.body);
+    }
+  }, []);
+
+  const handleSwitchCampaignType = (type: 'fresh' | 'followup') => {
+    setCampaignType(type);
+    localStorage.setItem('sheetSync_campaignType', type);
+    if (type === 'fresh') {
+      setSubject(FRESH_TEMPLATE.subject);
+      setBodyTemplate(FRESH_TEMPLATE.body);
+      toast.info('✉️ Switched to Fresh Outreach Mail Template');
+    } else {
+      setSubject(FOLLOWUP_TEMPLATE.subject);
+      setBodyTemplate(FOLLOWUP_TEMPLATE.body);
+      toast.info('🔄 Switched to Follow-Up Reminder Mail Template');
+    }
+  };
 
   // Parse emails out of raw text input (handles newlines, commas, semicolons, spaces)
   const parsedEmails = useMemo(() => {
@@ -56,11 +89,7 @@ export const BulkPasteMailer: React.FC = () => {
   useEffect(() => {
     if (parsedEmails.length > 0 && parsedEmails.length !== lastNotifiedCount) {
       setLastNotifiedCount(parsedEmails.length);
-      toast.success(`📋 Loaded ${parsedEmails.length} email addresses into ${batches.length} bulk batches!`, {
-        position: 'top-right',
-        autoClose: 3500,
-        theme: 'colored'
-      });
+      toast.success(`📋 Loaded ${parsedEmails.length} email addresses into ${batches.length} bulk batches!`);
     }
   }, [parsedEmails.length, batches.length, lastNotifiedCount]);
 
@@ -71,7 +100,7 @@ export const BulkPasteMailer: React.FC = () => {
 
     setSendingBatchIndex(batchIdx);
     setBatchLogs(prev => ({ ...prev, [batchIdx]: `Sending batch to ${targetEmails.length} recipients...` }));
-    toast.info(`🚀 Starting batch ${batchIdx + 1} send (${targetEmails.length} recipients)...`, { autoClose: 2500 });
+    toast.info(`🚀 Starting batch ${batchIdx + 1} send (${targetEmails.length} recipients)...`);
 
     // Save SMTP credentials
     localStorage.setItem('sheetSync_smtpUser', smtpUser);
@@ -107,87 +136,124 @@ export const BulkPasteMailer: React.FC = () => {
       }
 
       setProcessedBatches(prev => ({ ...prev, [batchIdx]: true }));
-      setBatchLogs(prev => ({ 
-        ...prev, 
-        [batchIdx]: `✅ Sent ${successCount} emails successfully! ${failCount > 0 ? `(${failCount} failed)` : ''}` 
-      }));
+      const logText = `Batch ${batchIdx + 1}: ${successCount} sent, ${failCount} failed.`;
+      setBatchLogs(prev => ({ ...prev, [batchIdx]: logText }));
 
       if (successCount > 0) {
-        toast.success(`✅ Batch ${batchIdx + 1} completed! ${successCount} sent, ${failCount} failed.`, { theme: 'colored' });
+        toast.success(`✅ Batch ${batchIdx + 1} completed! ${successCount} sent, ${failCount} failed.`);
       } else {
-        toast.error(`❌ Batch ${batchIdx + 1} failed for all recipients.`, { theme: 'colored' });
+        toast.error(`❌ Batch ${batchIdx + 1} failed for all recipients.`);
       }
     } catch (err: any) {
-      console.error(err);
-      setBatchLogs(prev => ({ ...prev, [batchIdx]: `❌ Batch failed: ${err.message}` }));
-      toast.error(`❌ Batch ${batchIdx + 1} error: ${err.message}`, { theme: 'colored' });
+      setBatchLogs(prev => ({ ...prev, [batchIdx]: `Batch ${batchIdx + 1} error: ${err.message}` }));
+      toast.error(`❌ Batch ${batchIdx + 1} error: ${err.message}`);
     } finally {
       setSendingBatchIndex(null);
     }
   };
 
-  // Send all batches sequentially
+  // Run all batches sequentially
   const handleSendAllBatches = async () => {
+    if (batches.length === 0) return;
     setIsSendingAll(true);
-    toast.info(`🚀 Processing all ${batches.length} bulk batches...`, { autoClose: 3000 });
+    toast.info(`🚀 Processing all ${batches.length} bulk batches...`);
+
     for (let i = 0; i < batches.length; i++) {
       if (!processedBatches[i]) {
         await handleSendBatch(i);
       }
     }
     setIsSendingAll(false);
-    toast.success(`🎉 All bulk batches processing completed!`, { theme: 'colored', autoClose: 5000 });
+    toast.success(`🎉 All bulk batches processing completed!`);
   };
 
-  const handleClear = () => {
-    setRawText('');
-    setProcessedBatches({});
-    setBatchLogs({});
-  };
-
-  // Dynamic Drafts: Open single batch in Gmail Web tabs
-  const handleOpenBatchDrafts = (batchIdx: number) => {
+  // Open batch as Gmail web compose tabs
+  const handleOpenBatchAsDrafts = (batchIdx: number) => {
     const targetEmails = batches[batchIdx];
     if (!targetEmails || targetEmails.length === 0) return;
-    toast.info(`📝 Opening ${targetEmails.length} Gmail draft tabs for Batch ${batchIdx + 1}...`, { autoClose: 2500 });
-    targetEmails.forEach((email) => {
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyTemplate)}`;
-      window.open(gmailUrl, '_blank');
+
+    toast.info(`📝 Opening ${targetEmails.length} Gmail draft tabs for Batch ${batchIdx + 1}...`);
+    targetEmails.forEach(email => {
+      const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyTemplate)}`;
+      window.open(url, '_blank');
     });
   };
 
-  // Dynamic Drafts: Open all loaded emails in Gmail Web tabs
-  const handleOpenAllDrafts = () => {
+  // Open ALL parsed emails as Gmail web draft tabs
+  const handleOpenAllAsDrafts = () => {
     if (parsedEmails.length === 0) return;
-    toast.info(`📝 Opening ${parsedEmails.length} Gmail draft tabs...`, { autoClose: 3500 });
-    parsedEmails.forEach((email) => {
-      const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyTemplate)}`;
-      window.open(gmailUrl, '_blank');
+    toast.info(`📝 Opening ${parsedEmails.length} Gmail draft tabs...`);
+    parsedEmails.forEach(email => {
+      const url = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(email)}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(bodyTemplate)}`;
+      window.open(url, '_blank');
     });
   };
 
-  // Dynamic Drafts: Copy Subject & Body to Clipboard
-  const handleCopyDraftToClipboard = () => {
-    const fullText = `Subject: ${subject}\n\n${bodyTemplate}`;
-    navigator.clipboard.writeText(fullText);
-    toast.success("📋 Email Subject & Body template copied to clipboard!", { autoClose: 2500 });
+  // Clear raw input
+  const handleClear = () => {
+    setRawText('');
+    localStorage.removeItem('sheetSync_bulkPastedEmails');
+    setProcessedBatches({});
+    setBatchLogs({});
+    toast.info("Cleared raw text input.");
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', maxWidth: '1000px', margin: '0 auto' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', maxWidth: '1100px', margin: '0 auto' }}>
       
       {/* Header Banner */}
       <div className="glass-card" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(99, 102, 241, 0.08) 100%)', borderColor: 'rgba(16, 185, 129, 0.2)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
           <div style={{ padding: '0.6rem', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', color: '#10b981' }}>
             <Layers size={24} />
           </div>
           <div>
-            <h2 className="upload-title" style={{ fontSize: '1.4rem', marginBottom: '0.15rem' }}>Bulk Raw Email Batch Mailer & Drafts</h2>
+            <h2 className="upload-title" style={{ fontSize: '1.4rem', marginBottom: '0.15rem' }}>Bulk Raw Email Batch Mailer</h2>
             <p className="upload-hint" style={{ marginBottom: 0 }}>
-              Paste any block of raw email addresses below. Extract valid emails into batches of 10, send via SMTP, or open dynamically as auto-saved Gmail Drafts.
+              Paste raw emails, choose <b>Fresh Outreach</b> or <b>Follow-Up</b> campaign mode, and send in automated batches of 10.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Campaign Mode Switcher (Fresh vs Follow-Up) */}
+      <div className="glass-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '1rem', background: campaignType === 'followup' ? 'rgba(245, 158, 11, 0.05)' : 'var(--bg-card)', borderColor: campaignType === 'followup' ? 'rgba(245, 158, 11, 0.3)' : 'var(--border-color)' }}>
+        <div>
+          <div style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            {campaignType === 'fresh' ? '✉️ Mode: Fresh Outreach Email' : '🔄 Mode: Follow-Up Email Campaign'}
+          </div>
+          <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)', margin: 0 }}>
+            {campaignType === 'fresh' 
+              ? 'Sends initial introduction application & resume to new HR contacts.' 
+              : 'Sends gentle follow-up reminder emails to previously contacted recruiters.'}
+          </p>
+        </div>
+
+        <div style={{ display: 'flex', gap: '0.5rem', background: 'rgba(0, 0, 0, 0.05)', padding: '0.3rem', borderRadius: '12px' }}>
+          <button
+            type="button"
+            className={campaignType === 'fresh' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => handleSwitchCampaignType('fresh')}
+            style={{ padding: '0.45rem 1rem', fontSize: '0.8rem', border: 'none' }}
+          >
+            <Send size={14} style={{ marginRight: '0.3rem' }} />
+            Fresh Mail
+          </button>
+          <button
+            type="button"
+            className={campaignType === 'followup' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => handleSwitchCampaignType('followup')}
+            style={{ 
+              padding: '0.45rem 1rem', 
+              fontSize: '0.8rem', 
+              border: 'none',
+              background: campaignType === 'followup' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'transparent',
+              color: campaignType === 'followup' ? '#ffffff' : undefined
+            }}
+          >
+            <RefreshCw size={14} style={{ marginRight: '0.3rem' }} />
+            Follow-Up Mail
+          </button>
         </div>
       </div>
 
@@ -211,10 +277,12 @@ export const BulkPasteMailer: React.FC = () => {
             rows={6}
             placeholder="Paste your raw list here, for example:
 hr@google.com, hr@razorpay.com, careers@paytm.com
-hr@cred.club; jobs@phonepe.com
-recruiter@techdome.in"
+hr@cred.club; jobs@phonepe.com"
             value={rawText}
-            onChange={(e) => setRawText(e.target.value)}
+            onChange={(e) => {
+              setRawText(e.target.value);
+              localStorage.setItem('sheetSync_bulkPastedEmails', e.target.value);
+            }}
             className="search-input"
             style={{ 
               padding: '0.85rem 1rem', 
@@ -243,20 +311,36 @@ recruiter@techdome.in"
           </div>
         </div>
 
+        {/* Credentials & Role Select */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '1rem' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label className="modal-label">Sender Gmail Address</label>
+            <input
+              type="email"
+              value={smtpUser}
+              onChange={(e) => setSmtpUser(e.target.value)}
+              className="search-input"
+              style={{ paddingLeft: '0.75rem' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+            <label className="modal-label">Gmail App Password</label>
+            <input
+              type="password"
+              value={smtpPass}
+              onChange={(e) => setSmtpPass(e.target.value)}
+              className="search-input"
+              style={{ paddingLeft: '0.75rem' }}
+            />
+          </div>
+        </div>
+
         {/* Email Subject & Message Customizer */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', borderTop: '1px solid rgba(75, 85, 99, 0.15)', paddingTop: '1rem' }}>
           
-          <RoleSelector 
-            selectedRole={selectedRole}
-            onSelectRole={(tmpl: RoleTemplate) => {
-              setSelectedRole(tmpl.id);
-              setSubject(tmpl.subject);
-              setBodyTemplate(tmpl.body);
-            }}
-          />
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label className="modal-label">Email Subject</label>
+            <label className="modal-label">Email Subject ({campaignType.toUpperCase()} MODE)</label>
             <input
               type="text"
               value={subject}
@@ -267,7 +351,7 @@ recruiter@techdome.in"
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
-            <label className="modal-label">Email Message Template</label>
+            <label className="modal-label">Email Message Template ({campaignType.toUpperCase()} MODE)</label>
             <textarea
               rows={6}
               value={bodyTemplate}
@@ -298,242 +382,118 @@ recruiter@techdome.in"
             </span>
           </div>
           <span style={{ fontSize: '0.75rem', background: '#10b981', color: '#fff', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 600 }}>
-            PDF Ready
+            PDF Attached
           </span>
         </div>
-
-        {/* Sender Credentials & Send All Bar */}
-        <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap', alignItems: 'flex-end', borderTop: '1px solid rgba(75, 85, 99, 0.15)', paddingTop: '1rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '180px' }}>
-            <label className="modal-label" style={{ fontSize: '0.75rem' }}>Sender Gmail Address</label>
-            <input
-              type="email"
-              value={smtpUser}
-              onChange={(e) => setSmtpUser(e.target.value)}
-              className="search-input"
-              style={{ paddingLeft: '0.75rem', fontSize: '0.8rem' }}
-            />
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', flex: 1, minWidth: '180px' }}>
-            <label className="modal-label" style={{ fontSize: '0.75rem' }}>Gmail App Password</label>
-            <input
-              type="password"
-              value={smtpPass}
-              onChange={(e) => setSmtpPass(e.target.value)}
-              className="search-input"
-              style={{ paddingLeft: '0.75rem', fontSize: '0.8rem' }}
-            />
-          </div>
-
-          {batches.length > 0 && (
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={handleSendAllBatches}
-              disabled={isSendingAll || sendingBatchIndex !== null || batches.every((_, idx) => processedBatches[idx])}
-              style={{ padding: '0.75rem 1.5rem', height: '42px', minWidth: '200px', background: '#10b981', borderColor: '#10b981' }}
-            >
-              {isSendingAll ? (
-                <>
-                  <Loader2 size={16} className="animate-spin" />
-                  Sending All Batches...
-                </>
-              ) : (
-                <>
-                  <Play size={16} />
-                  Send All {batches.length} Batches ({parsedEmails.length} Mails)
-                </>
-              )}
-            </button>
-          )}
-        </div>
-
       </div>
 
-      {/* Dynamic Gmail Drafts Launcher Section */}
-      <div 
-        className="glass-card" 
-        style={{ 
-          background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(168, 85, 247, 0.08) 100%)', 
-          borderColor: 'rgba(99, 102, 241, 0.25)', 
-          display: 'flex', 
-          flexDirection: 'column', 
-          gap: '1rem' 
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.75rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-            <div style={{ padding: '0.5rem', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.15)', color: '#6366f1' }}>
-              <FileText size={22} />
-            </div>
-            <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: 'var(--text-primary)' }}>
-                Dynamic Gmail Drafts Launcher Section
-              </h3>
-              <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Open pre-filled email compose windows in Gmail web. Gmail auto-saves these directly as Drafts in your inbox.
-              </p>
-            </div>
-          </div>
+      {/* Batches Overview & Controls */}
+      {parsedEmails.length > 0 && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+            <span style={{ fontSize: '1rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+              Bulk Execution Queue ({batches.length} Batches of 10)
+            </span>
 
-          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-            <button
-              type="button"
-              className="btn-secondary"
-              onClick={handleCopyDraftToClipboard}
-              style={{ fontSize: '0.8rem', padding: '0.45rem 0.85rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
-            >
-              <Copy size={14} />
-              Copy Draft Text
-            </button>
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="btn-secondary"
+                onClick={handleOpenAllAsDrafts}
+                style={{ padding: '0.5rem 1rem', fontSize: '0.82rem' }}
+              >
+                <ExternalLink size={14} />
+                Open All {parsedEmails.length} as Gmail Tabs
+              </button>
 
-            {batches.length > 0 && (
               <button
                 type="button"
                 className="btn-primary"
-                onClick={handleOpenAllDrafts}
-                style={{ 
-                  fontSize: '0.8rem', 
-                  padding: '0.45rem 0.85rem', 
-                  background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', 
-                  borderColor: '#6366f1', 
-                  display: 'flex', 
-                  alignItems: 'center', 
-                  gap: '0.35rem' 
-                }}
+                onClick={handleSendAllBatches}
+                disabled={isSendingAll || sendingBatchIndex !== null}
+                style={{ padding: '0.5rem 1.2rem', fontSize: '0.82rem', background: campaignType === 'followup' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : '#10b981', borderColor: campaignType === 'followup' ? '#f59e0b' : '#10b981' }}
               >
-                <ExternalLink size={14} />
-                Open All {parsedEmails.length} Draft Tabs in Gmail
+                {isSendingAll ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} />}
+                {isSendingAll ? 'Sending All Batches...' : `Send All ${batches.length} Batches`}
               </button>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Batches Preview & Dispatch List */}
-      {batches.length > 0 && (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-              Batches of 10 ({batches.length} Total Batches)
-            </h3>
-            <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              {Object.keys(processedBatches).length} / {batches.length} Batches Sent
-            </span>
+            </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1.25rem' }}>
-            {batches.map((batchEmails, batchIdx) => {
-              const isProcessed = processedBatches[batchIdx];
-              const isSending = sendingBatchIndex === batchIdx;
-              const logText = batchLogs[batchIdx];
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '1rem' }}>
+            {batches.map((batchList, bIdx) => {
+              const isSending = sendingBatchIndex === bIdx;
+              const isDone = processedBatches[bIdx];
 
               return (
                 <div 
-                  key={batchIdx}
+                  key={bIdx}
                   className="glass-card"
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
                     justifyContent: 'space-between',
-                    gap: '1rem',
-                    background: isProcessed ? 'rgba(16, 185, 129, 0.03)' : 'var(--bg-card)',
-                    borderColor: isProcessed ? 'rgba(16, 185, 129, 0.25)' : 'var(--border-color)'
+                    gap: '0.75rem',
+                    background: isDone ? 'rgba(16, 185, 129, 0.04)' : 'var(--bg-card)',
+                    borderColor: isDone ? 'rgba(16, 185, 129, 0.3)' : 'var(--border-color)'
                   }}
                 >
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--text-primary)', fontSize: '1rem' }}>
-                          Batch {batchIdx + 1}
-                        </span>
-                        <span style={{ fontSize: '0.75rem', background: 'rgba(99, 102, 241, 0.1)', color: '#818cf8', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 600 }}>
-                          {batchEmails.length} recipients
-                        </span>
-                      </div>
-                      {isProcessed && (
-                        <span style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                          <CheckCircle2 size={14} /> Processed
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span style={{ fontSize: '0.9rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                        Batch #{bIdx + 1} ({batchList.length} Emails)
+                      </span>
+                      {isDone && (
+                        <span style={{ fontSize: '0.72rem', color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                          <CheckCircle2 size={13} /> Completed
                         </span>
                       )}
                     </div>
 
-                    {/* Email pills preview */}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', maxHeight: '180px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                      {batchEmails.map((email, idx) => (
-                        <div 
-                          key={idx}
-                          style={{
-                            fontSize: '0.78rem',
-                            fontFamily: 'var(--font-mono)',
-                            color: 'var(--text-secondary)',
-                            background: 'rgba(0, 0, 0, 0.2)',
-                            padding: '0.35rem 0.5rem',
-                            borderRadius: '4px',
-                            wordBreak: 'break-all'
-                          }}
-                        >
-                          {idx + 1}. {email}
+                    {/* Email preview list */}
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.05)', padding: '0.5rem', borderRadius: '6px', maxHeight: '80px', overflowY: 'auto' }}>
+                      {batchList.map((em, idx) => (
+                        <div key={idx} style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          • {em}
                         </div>
                       ))}
                     </div>
+
+                    {batchLogs[bIdx] && (
+                      <div style={{ fontSize: '0.72rem', color: isDone ? '#10b981' : '#6366f1', fontWeight: 600 }}>
+                        {batchLogs[bIdx]}
+                      </div>
+                    )}
                   </div>
 
-                  {logText && (
-                    <div style={{ fontSize: '0.75rem', color: isProcessed ? '#10b981' : '#818cf8', fontWeight: 500 }}>
-                      {logText}
-                    </div>
-                  )}
-
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', gap: '0.5rem', borderTop: '1px solid rgba(255,255,255,0.06)', paddingTop: '0.5rem' }}>
                     <button
                       type="button"
                       className="btn-secondary"
-                      onClick={() => handleOpenBatchDrafts(batchIdx)}
-                      title="Open Gmail web compose tabs pre-filled for this batch"
-                      style={{
-                        flex: 1,
-                        padding: '0.5rem',
-                        fontSize: '0.78rem',
-                        justifyContent: 'center',
-                        borderColor: 'rgba(99, 102, 241, 0.3)',
-                        color: '#818cf8'
-                      }}
+                      onClick={() => handleOpenBatchAsDrafts(bIdx)}
+                      style={{ flex: 1, padding: '0.4rem', fontSize: '0.75rem', justifyContent: 'center' }}
                     >
-                      <ExternalLink size={13} />
-                      Draft Tabs
+                      <ExternalLink size={12} />
+                      Gmail Tabs
                     </button>
 
                     <button
                       type="button"
-                      className={isProcessed ? 'btn-secondary' : 'btn-primary'}
-                      onClick={() => handleSendBatch(batchIdx)}
-                      disabled={isSending || isSendingAll}
-                      style={{
-                        flex: 1.2,
-                        padding: '0.5rem',
-                        fontSize: '0.78rem',
-                        justifyContent: 'center',
-                        background: isProcessed ? 'rgba(16, 185, 129, 0.1)' : undefined,
-                        borderColor: isProcessed ? 'rgba(16, 185, 129, 0.3)' : undefined,
-                        color: isProcessed ? '#10b981' : undefined
-                      }}
+                      className={isDone ? 'btn-secondary' : 'btn-primary'}
+                      onClick={() => handleSendBatch(bIdx)}
+                      disabled={isSending}
+                      style={{ flex: 1.2, padding: '0.4rem', fontSize: '0.75rem', justifyContent: 'center', background: isDone ? undefined : campaignType === 'followup' ? '#f59e0b' : '#10b981', borderColor: isDone ? undefined : campaignType === 'followup' ? '#f59e0b' : '#10b981' }}
                     >
                       {isSending ? (
                         <>
-                          <Loader2 size={13} className="animate-spin" />
+                          <Loader2 size={12} className="animate-spin" />
                           Sending...
                         </>
-                      ) : isProcessed ? (
-                        <>
-                          <CheckCircle2 size={13} />
-                          Resend
-                        </>
+                      ) : isDone ? (
+                        'Resend Batch'
                       ) : (
                         <>
-                          <Send size={13} />
-                          SMTP Send
+                          <Send size={12} />
+                          Send Batch #{bIdx + 1}
                         </>
                       )}
                     </button>

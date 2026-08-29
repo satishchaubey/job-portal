@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { FileSpreadsheet, Sparkles, RefreshCw, Layers, Table, ChevronRight, Send, Building, Zap, Mail, Menu, X } from 'lucide-react';
-import { ToastContainer, toast } from 'react-toastify';
-import 'react-toastify/dist/ReactToastify.css';
+import { FileSpreadsheet, Sparkles, RefreshCw, Layers, Table, ChevronRight, Send, Menu, X, FileText, Clock } from 'lucide-react';
+import { ToastContainer, toast } from './toast';
 import { UploadZone } from './components/UploadZone';
 import { StatsDashboard } from './components/StatsDashboard';
 import { TableView } from './components/TableView';
@@ -9,8 +8,7 @@ import { DetailModal } from './components/DetailModal';
 import { BatchMailer } from './components/BatchMailer';
 import { QuickSend } from './components/QuickSend';
 import { BulkPasteMailer } from './components/BulkPasteMailer';
-import { FintechDirectory } from './components/FintechDirectory';
-import { AIHunt } from './components/AIHunt';
+import { GmailDraftsManager } from './components/GmailDraftsManager';
 
 function App() {
   const [sheetData, setSheetData] = useState<any[] | null>(null);
@@ -35,7 +33,7 @@ function App() {
       return cleanP.startsWith('/') ? cleanP : `/${cleanP}`;
     }
 
-    // 2. Check hash route e.g. #/ai-hunt or #ai-hunt
+    // 2. Check hash route e.g. #/gmail-drafts or #/gmail-sent
     if (window.location.hash) {
       const hashRoute = window.location.hash.replace(/^#\/?/, '/');
       if (hashRoute) return hashRoute.startsWith('/') ? hashRoute : `/${hashRoute}`;
@@ -109,11 +107,7 @@ function App() {
     setFileName(name);
     setActiveTab('table'); // Default to table view when data is loaded
 
-    toast.success(`📁 File uploaded successfully! Loaded ${filteredData.length} HR contacts from ${name}`, {
-      position: 'top-right',
-      autoClose: 4500,
-      theme: 'colored'
-    });
+    toast.success(`📁 File uploaded successfully! Loaded ${filteredData.length} HR contacts from ${name}`);
   };
 
   const handleReset = () => {
@@ -121,15 +115,14 @@ function App() {
     setHeaders([]);
     setFileName('');
     setSelectedContact(null);
-    toast.info("Upload zone reset. You can load a new sheet now.", { autoClose: 2500 });
+    toast.info("Upload zone reset. You can load a new sheet now.");
   };
-
 
   const cleanRoute = route.replace(/\/+$/, '') || '/';
 
   return (
     <div className="container">
-      <ToastContainer position="top-right" autoClose={3500} hideProgressBar={false} newestOnTop closeOnClick pauseOnHover draggable theme="colored" />
+      <ToastContainer />
       {/* Brand Header & Main Routes Navigation */}
       <header className="app-header">
         <div className="brand-section" style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>
@@ -196,22 +189,28 @@ function App() {
 
           <button
             type="button"
-            className={cleanRoute === '/fintech-dir' ? 'btn-primary' : 'btn-secondary'}
-            onClick={() => navigate('/fintech-dir')}
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: cleanRoute === '/fintech-dir' ? undefined : 'transparent', color: cleanRoute === '/fintech-dir' ? undefined : '#f59e0b' }}
+            className={cleanRoute === '/gmail-drafts' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => navigate('/gmail-drafts')}
+            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: cleanRoute === '/gmail-drafts' ? undefined : 'transparent' }}
           >
-            <Building size={14} style={{ marginRight: '0.25rem' }} />
-            Fintech Directory NCR
+            <FileText size={14} style={{ marginRight: '0.25rem' }} />
+            My Gmail Drafts
           </button>
 
           <button
             type="button"
-            className={cleanRoute === '/ai-hunt' ? 'btn-primary' : 'btn-secondary'}
-            onClick={() => navigate('/ai-hunt')}
-            style={{ padding: '0.45rem 0.85rem', fontSize: '0.8rem', border: 'none', background: cleanRoute === '/ai-hunt' ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent', color: cleanRoute === '/ai-hunt' ? 'white' : '#4f46e5' }}
+            className={cleanRoute === '/gmail-sent' ? 'btn-primary' : 'btn-secondary'}
+            onClick={() => navigate('/gmail-sent')}
+            style={{ 
+              padding: '0.45rem 0.85rem', 
+              fontSize: '0.8rem', 
+              border: 'none', 
+              background: cleanRoute === '/gmail-sent' ? 'linear-gradient(135deg, #f59e0b, #d97706)' : 'transparent',
+              color: cleanRoute === '/gmail-sent' ? '#ffffff' : '#d97706'
+            }}
           >
-            <Zap size={14} style={{ marginRight: '0.25rem' }} />
-            AI Job Hunter
+            <Clock size={14} style={{ marginRight: '0.25rem' }} />
+            Previous Sent Mails
           </button>
         </nav>
 
@@ -282,43 +281,48 @@ function App() {
 
           <button
             type="button"
-            onClick={() => { navigate('/fintech-dir'); setMobileMenuOpen(false); }}
+            onClick={() => { navigate('/gmail-drafts'); setMobileMenuOpen(false); }}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
-              background: cleanRoute === '/fintech-dir' ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
-              color: cleanRoute === '/fintech-dir' ? '#d97706' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+              background: cleanRoute === '/gmail-drafts' ? 'rgba(79, 70, 229, 0.08)' : 'transparent',
+              color: cleanRoute === '/gmail-drafts' ? '#4f46e5' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
             }}
           >
-            <Building size={18} style={{ color: '#f59e0b' }} /> Fintech Directory NCR
+            <FileText size={18} style={{ color: '#4f46e5' }} /> My Gmail Drafts
           </button>
 
           <button
             type="button"
-            onClick={() => { navigate('/ai-hunt'); setMobileMenuOpen(false); }}
+            onClick={() => { navigate('/gmail-sent'); setMobileMenuOpen(false); }}
             style={{
               display: 'flex', alignItems: 'center', gap: '0.75rem', padding: '0.75rem 1rem', borderRadius: '10px', border: 'none',
-              background: cleanRoute === '/ai-hunt' ? 'linear-gradient(135deg,#4f46e5,#7c3aed)' : 'transparent',
-              color: cleanRoute === '/ai-hunt' ? '#ffffff' : '#4f46e5', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
+              background: cleanRoute === '/gmail-sent' ? 'rgba(245, 158, 11, 0.08)' : 'transparent',
+              color: cleanRoute === '/gmail-sent' ? '#d97706' : '#0f172a', fontWeight: 600, fontSize: '0.95rem', cursor: 'pointer', textAlign: 'left'
             }}
           >
-            <Zap size={18} style={{ color: cleanRoute === '/ai-hunt' ? '#ffffff' : '#4f46e5' }} /> AI Job Hunter
+            <Clock size={18} style={{ color: '#f59e0b' }} /> Previous Sent Mails
           </button>
         </div>
       )}
 
-
       {/* Route Switcher Render */}
-      {cleanRoute === '/ai-hunt' ? (
-        /* Full-page light theme — no container wrapper */
-        <AIHunt />
-      ) : cleanRoute === '/fintech-dir' ? (
+      {cleanRoute === '/gmail-sent' ? (
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
             <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>Home</span>
             <ChevronRight size={12} />
-            <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>Fintech Directory NCR</span>
+            <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>Previous Sent Mails History</span>
           </div>
-          <FintechDirectory />
+          <GmailDraftsManager initialFolder="sent" />
+        </div>
+      ) : cleanRoute === '/gmail-drafts' ? (
+        <div style={{ animation: 'fadeIn 0.3s ease' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', marginBottom: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            <span style={{ cursor: 'pointer' }} onClick={() => navigate('/')}>Home</span>
+            <ChevronRight size={12} />
+            <span style={{ color: 'var(--text-primary)', fontWeight: 500 }}>My Gmail Drafts</span>
+          </div>
+          <GmailDraftsManager initialFolder="drafts" />
         </div>
       ) : cleanRoute === '/bulk-paste' ? (
         <div style={{ animation: 'fadeIn 0.3s ease' }}>
@@ -344,7 +348,6 @@ function App() {
         </div>
       ) : (
         /* Main Home Route "/" */
-        /* Main Home Route "/" */
         <div>
           {!sheetData ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.4s ease' }}>
@@ -353,26 +356,26 @@ function App() {
                   Explore, Batch & Apply
                 </h2>
                 <p style={{ color: 'var(--text-secondary)', maxWidth: '600px', margin: '0 auto 1.5rem auto', fontSize: '0.95rem' }}>
-                  A programmatically automated recruiter messaging suite. Load your spreadsheet, browse the Fintech Directory, or send bulk emails to NCR companies directly.
+                  A programmatically automated recruiter messaging suite. Load your spreadsheet, manage Gmail drafts, or send bulk emails to recruiters directly.
                 </p>
                 <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', flexWrap: 'wrap' }}>
                   <button 
                     type="button" 
                     className="btn-primary" 
-                    onClick={() => navigate('/fintech-dir')}
-                    style={{ fontSize: '0.9rem', background: 'linear-gradient(135deg, #f59e0b, #d97706)', borderColor: '#f59e0b', color: '#ffffff' }}
+                    onClick={() => navigate('/gmail-drafts')}
+                    style={{ fontSize: '0.9rem' }}
                   >
-                    <Building size={16} />
-                    Fintech Directory NCR
+                    <FileText size={16} />
+                    My Gmail Drafts
                   </button>
                   <button 
                     type="button" 
                     className="btn-secondary" 
-                    onClick={() => navigate('/direct-send')}
-                    style={{ fontSize: '0.9rem' }}
+                    onClick={() => navigate('/gmail-sent')}
+                    style={{ fontSize: '0.9rem', color: '#d97706', borderColor: 'rgba(245, 158, 11, 0.4)' }}
                   >
-                    <Send size={16} />
-                    Quick Direct Mail
+                    <Clock size={16} />
+                    Previous Sent Mails
                   </button>
                 </div>
               </div>
@@ -416,76 +419,55 @@ function App() {
                 </button>
               </div>
 
-              {/* Navigation Sub-Tabs */}
-              <div style={{ 
-                display: 'flex', 
-                gap: '1rem', 
-                borderBottom: '1px solid var(--border-color)', 
-                paddingBottom: '0.75rem',
-                marginTop: '0.5rem'
-              }}>
+              {/* View Mode Switcher */}
+              <div style={{ display: 'flex', gap: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
                 <button
                   type="button"
-                  onClick={() => setActiveTab('table')}
                   className={activeTab === 'table' ? 'btn-primary' : 'btn-secondary'}
-                  style={{ padding: '0.55rem 1.25rem', fontSize: '0.9rem', gap: '0.5rem' }}
+                  onClick={() => setActiveTab('table')}
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                 >
-                  <Table size={16} />
-                  Database View
+                  <Table size={14} />
+                  Contacts Table ({sheetData.length})
                 </button>
                 
                 <button
                   type="button"
-                  onClick={() => setActiveTab('campaign')}
                   className={activeTab === 'campaign' ? 'btn-primary' : 'btn-secondary'}
-                  style={{ padding: '0.55rem 1.25rem', fontSize: '0.9rem', gap: '0.5rem' }}
+                  onClick={() => setActiveTab('campaign')}
+                  style={{ padding: '0.5rem 1rem', fontSize: '0.85rem' }}
                 >
-                  <Mail size={16} />
+                  <Send size={14} />
                   Batch Email Campaign
                 </button>
               </div>
 
-              {/* Tab Contents */}
-              {activeTab === 'table' ? (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', animation: 'fadeIn 0.3s ease' }}>
-                  <StatsDashboard data={sheetData} />
-                  <TableView 
-                    data={sheetData} 
-                    headers={headers} 
-                    onRowClick={(row) => setSelectedContact(row)} 
-                  />
-                </div>
-              ) : (
-                <div style={{ animation: 'fadeIn 0.3s ease' }}>
-                  <BatchMailer data={sheetData} />
-                </div>
-              )}
+              {/* Dashboard stats */}
+              <StatsDashboard data={sheetData} headers={headers} />
 
+              {/* View Content */}
+              {activeTab === 'table' ? (
+                <TableView 
+                  data={sheetData} 
+                  headers={headers} 
+                  onSelectContact={(contact) => setSelectedContact(contact)} 
+                />
+              ) : (
+                <BatchMailer data={sheetData} headers={headers} />
+              )}
             </div>
           )}
         </div>
       )}
 
-      {/* Selected Contact Details Modal */}
+      {/* Contact detail modal */}
       {selectedContact && (
-        <DetailModal
-          contact={selectedContact}
-          headers={headers}
-          onClose={() => setSelectedContact(null)}
+        <DetailModal 
+          contact={selectedContact} 
+          headers={headers} 
+          onClose={() => setSelectedContact(null)} 
         />
       )}
-
-      {/* Footer */}
-      <footer style={{ 
-        marginTop: 'auto', 
-        paddingTop: '2rem', 
-        borderTop: '1px solid var(--border-color)', 
-        textAlign: 'center',
-        fontSize: '0.8rem',
-        color: 'var(--text-muted)'
-      }}>
-        <p>© 2026 SheetSync. Built using React, TypeScript and Vanilla CSS. All file parsing and mail routing occur securely within your browser session.</p>
-      </footer>
     </div>
   );
 }
