@@ -417,6 +417,15 @@ app.post('/api/send-email', async (req, res) => {
     transporter = await createCloudTransporter(smtpUser, smtpPass);
   } catch (error) {
     console.error('SMTP Connection Verification Failed:', error.message);
+    const isTimeout = error.message.toLowerCase().includes('timeout') || error.message.includes('ENETUNREACH') || error.message.includes('ETIMEDOUT');
+    
+    if (isTimeout) {
+      return res.status(504).json({
+        success: false,
+        message: 'Render Cloud SMTP Port Block: Render free cloud web instances block outbound raw TCP SMTP ports (587 & 465) by default to prevent spam. To send emails via direct Gmail SMTP, please run your local backend server (http://localhost:3001 or your PC Wi-Fi IP http://192.168.x.x:3001) using "npm run dev".'
+      });
+    }
+
     return res.status(401).json({ 
       success: false, 
       message: `SMTP Login failed: ${error.message}. Please check your Gmail address and App Password.` 
