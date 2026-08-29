@@ -3,19 +3,9 @@ import cors from 'cors';
 import nodemailer from 'nodemailer';
 import path from 'path';
 import fs from 'fs';
-import dns from 'dns';
 import { fileURLToPath } from 'url';
 import Imap from 'imap';
 import { simpleParser } from 'mailparser';
-
-// Custom DNS lookup that explicitly forces IPv4 address resolution (bypassing cloud IPv6 ENETUNREACH on Render)
-const ipv4Lookup = (hostname, options, callback) => {
-  if (typeof options === 'function') {
-    callback = options;
-    options = {};
-  }
-  return dns.lookup(hostname, { family: 4 }, callback);
-};
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -359,186 +349,71 @@ Each object must have:
   }
 });
 
-// Helper to create cloud-safe nodemailer transporter with automatic port fallback (587 -> 465)
-const createCloudTransporter = async (user, pass) => {
-  const cleanUser = user.trim();
-  const cleanPass = pass.replace(/\s+/g, '');
-
-  // Primary: Port 587 with IPv4 DNS forced (STARTTLS - recommended for cloud hosts like Render)
-  const primaryTransporter = nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 587,
-    secure: false,
-    lookup: ipv4Lookup, // FORCE IPv4 DNS LOOKUP to bypass cloud IPv6 ENETUNREACH
-    auth: { user: cleanUser, pass: cleanPass },
-    tls: { rejectUnauthorized: false },
-    connectionTimeout: 10000,
-    greetingTimeout: 5000,
-    socketTimeout: 15000
-  });
-
-  try {
-    await primaryTransporter.verify();
-    return primaryTransporter;
-  } catch (err1) {
-    console.warn('Port 587 IPv4 failed, trying fallback Port 465:', err1.message);
-    
-    // Fallback: Port 465 (Implicit SSL) with IPv4 DNS forced
-    const fallbackTransporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com',
-      port: 465,
-      secure: true,
-      lookup: ipv4Lookup, // FORCE IPv4 DNS LOOKUP
-      auth: { user: cleanUser, pass: cleanPass },
-      tls: { rejectUnauthorized: false },
-      connectionTimeout: 10000,
-      greetingTimeout: 5000,
-      socketTimeout: 15000
-    });
-
-    await fallbackTransporter.verify();
-    return fallbackTransporter;
-  }
-};
-
-const getResendApiKey = (reqKey) => {
-  if (reqKey && typeof reqKey === 'string' && reqKey.trim()) return reqKey.trim();
-  if (process.env.RESEND_API_KEY) return process.env.RESEND_API_KEY.trim();
-  const p1 = 're_hgco7rZ3';
-  const p2 = 'FUQBXgf39AvWfBzBAqp1xU9u';
-  return `${p1}_${p2}`;
-};
-
-// Helper function to send email via Resend HTTPS REST API (Works on Render cloud without SMTP port blocks)
-const sendEmailViaResend = async ({ to, subject, body, fromName = 'Satish Kumar Chaubey', apiKey }) => {
-  const activeKey = getResendApiKey(apiKey);
-  const resumePath = path.join(__dirname, 'public', 'Satish_Kumar_Chaubey.pdf');
-  const attachments = [];
-
-  if (fs.existsSync(resumePath)) {
-    const pdfBase64 = fs.readFileSync(resumePath).toString('base64');
-    attachments.push({
-      filename: 'Satish_Kumar_Chaubey.pdf',
-      content: pdfBase64
-    });
-  }
-
-  const payload = {
-    from: `${fromName} <onboarding@resend.dev>`,
-    to: Array.isArray(to) ? to : [to.trim()],
-    subject: subject,
-    text: body,
-    attachments
-  };
-
-  const res = await fetch('https://api.resend.com/emails', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${activeKey}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(payload)
-  });
-
-  const data = await res.json();
-  if (!res.ok || data.error) {
-    throw new Error(data.message || (data.error && data.error.message) || 'Resend API error');
-  }
-
-  return data;
-};
-
-// Endpoint to send a single email with PDF attachment (Hybrid: Gmail SMTP + Resend HTTPS API)
+// Endpoint to send a single email with PDF attachment
 app.post('/api/send-email', async (req, res) => {
-  const { smtpUser, smtpPass, to, subject, body, preferResend } = req.body;
+  const { smtpUser, smtpPass, to, subject, body } = req.body;
 
-  if (!to || !subject || !body) {
+  if (!smtpUser || !smtpPass || !to || !subject || !body) {
     return res.status(400).json({ 
       success: false, 
-      message: 'Missing required parameters (to, subject, body).' 
+      message: 'Missing required parameters. Make sure to provide SMTP credentials, recipient, subject, and body.' 
     });
   }
 
-  const isRenderCloud = process.env.RENDER === 'true' || process.env.NODE_ENV === 'production';
+  // Setup transporter
+  const transporter = nodemailer.createTransport({
+    host: 'smtp.gmail.com',
+    port: 465,
+    secure: true, // true for port 465, false for other ports
+    auth: {
+      user: smtpUser,
+      pass: smtpPass,
+    },
+  });
 
-  // 1. If deployed on Render cloud or preferResend is set, use Resend HTTPS API directly for instant speed!
-  if (preferResend || (isRenderCloud && (!smtpUser || !smtpPass))) {
-    try {
-      console.log(`[Resend Engine] Sending email to ${to}...`);
-      const resendRes = await sendEmailViaResend({ to, subject, body });
-      return res.json({
-        success: true,
-        message: `Email successfully sent to ${to} (via Resend HTTPS API)`,
-        messageId: resendRes.id,
-        engine: 'resend'
-      });
-    } catch (resendErr) {
-      console.error('[Resend Engine] Error:', resendErr.message);
-    }
-  }
-
-  // 2. Try Gmail Direct SMTP (Local mode)
-  if (smtpUser && smtpPass) {
-    try {
-      const transporter = await createCloudTransporter(smtpUser, smtpPass);
-      const attachments = [];
-      const resumePath = path.join(__dirname, 'public', 'Satish_Kumar_Chaubey.pdf');
-      if (fs.existsSync(resumePath)) {
-        attachments.push({
-          filename: 'Satish_Kumar_Chaubey.pdf',
-          path: resumePath
-        });
-      }
-
-      const mailOptions = {
-        from: `"Satish Kumar Chaubey" <${smtpUser.trim()}>`,
-        to: to.trim(),
-        subject: subject,
-        text: body,
-        attachments
-      };
-
-      console.log(`Attempting to send email via Gmail SMTP to: ${to}...`);
-      const info = await transporter.sendMail(mailOptions);
-      console.log(`Email successfully sent via Gmail SMTP: ${info.messageId}`);
-      return res.json({ 
-        success: true, 
-        message: `Email successfully sent to ${to} (via Gmail SMTP)`,
-        messageId: info.messageId,
-        engine: 'gmail' 
-      });
-    } catch (error) {
-      console.warn('Gmail SMTP failed/timed out on cloud, automatically routing through Resend API fallback...', error.message);
-    }
-  }
-
-  // 3. Fallback to Resend HTTPS REST API (Always works on Render Cloud)
+  // Verify connection configuration
   try {
-    console.log(`[Resend Fallback Engine] Sending email to ${to}...`);
-    const resendRes = await sendEmailViaResend({ to, subject, body });
-    return res.json({
-      success: true,
-      message: `Email successfully sent to ${to} (via Resend API Cloud Relay)`,
-      messageId: resendRes.id,
-      engine: 'resend-fallback'
+    // Note: verifying on every request is simple for local development
+    await transporter.verify();
+  } catch (error) {
+    console.error('SMTP Connection Verification Failed:', error);
+    return res.status(401).json({ 
+      success: false, 
+      message: 'SMTP Login failed. Please check your Gmail address and App Password.' 
     });
-  } catch (fallbackErr) {
-    console.error('[Resend Fallback Engine] Error:', fallbackErr.message);
-    const gmailDraftUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(to.trim())}&su=${encodeURIComponent(subject.trim())}&body=${encodeURIComponent(body.trim())}`;
-    
-    if (fallbackErr.message.includes('only send testing emails') || fallbackErr.message.includes('resend.com/domains')) {
-      return res.status(400).json({
-        success: false,
-        message: `Resend Free Key Limitation: Resend free account allows sending API emails to your owner email (satishchaubey02@gmail.com). To send to external recruiters like ${to}, please run your Local Backend (npm run dev) or click 'Open in Gmail Web Draft'!`,
-        gmailDraftUrl,
-        isResendRestricted: true
-      });
-    }
+  }
 
-    return res.status(500).json({
-      success: false,
-      message: `Email delivery failed: ${fallbackErr.message}`,
-      gmailDraftUrl
+  // Define attachment path
+  const resumePath = path.join(__dirname, 'public', 'Satish_Kumar_Chaubey.pdf');
+
+  // Mail options
+  const mailOptions = {
+    from: `"Satish Kumar Chaubey" <${smtpUser}>`,
+    to: to,
+    subject: subject,
+    text: body,
+    attachments: [
+      {
+        filename: 'Satish_Kumar_Chaubey.pdf',
+        path: resumePath
+      }
+    ]
+  };
+
+  try {
+    console.log(`Attempting to send email to: ${to}...`);
+    const info = await transporter.sendMail(mailOptions);
+    console.log(`Email successfully sent: ${info.messageId}`);
+    return res.status(200).json({ 
+      success: true, 
+      message: `Email successfully sent to ${to}`,
+      messageId: info.messageId 
+    });
+  } catch (error) {
+    console.error('Email Sending Failed:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: error.message 
     });
   }
 });
